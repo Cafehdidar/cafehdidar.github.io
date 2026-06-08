@@ -451,10 +451,15 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
   }, []);
 
   const orders = useMemo(() => {
-    return rawOrders.map(o => ({
-      ...o,
-      status: localStatuses[o.id] || o.status
-    }));
+    return rawOrders.map(o => {
+      // Only apply saved status if it specifically exists for this ID
+      // Otherwise, default to 'جدید' as requested
+      const savedStatus = localStatuses[o.id];
+      return {
+        ...o,
+        status: savedStatus || 'جدید'
+      };
+    });
   }, [rawOrders, localStatuses]);
 
   const fetchOrders = async () => {
