@@ -450,18 +450,6 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
     }
   }, []);
 
-  const orders = useMemo(() => {
-    return rawOrders.map(o => {
-      // Only apply saved status if it specifically exists for this ID
-      // Otherwise, default to 'جدید' as requested
-      const savedStatus = localStatuses[o.id];
-      return {
-        ...o,
-        status: savedStatus || 'جدید'
-      };
-    });
-  }, [rawOrders, localStatuses]);
-
   const fetchOrders = async () => {
     try {
       const res = await fetch(GAS_URL);
@@ -478,26 +466,47 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
     return () => clearInterval(interval);
   }, []);
 
-  const handleUpdateStatus = async (orderId: string, newStatus: string) => {
+  const orders = useMemo(() => {
+    return rawOrders.map((o, index) => {
+      // Use "done" status from Google Sheets as source of truth for completion
+      // Otherwise, use local override or default to "جدید"
+      let finalStatus = o.status;
+      if (finalStatus !== 'done') {
+        finalStatus = localStatuses[o.id] || 'جدید';
+      }
+      return {
+        ...o,
+        rowIndex: index + 2, // Assuming standard Google Sheet with header at row 1
+        status: finalStatus
+      };
+    });
+  }, [rawOrders, localStatuses]);
+
+  const handleUpdateStatus = async (order: any, newStatus: string) => {
     const params = new URLSearchParams({
       action: 'updateStatus',
-      id: orderId,
+      rowIndex: order.rowIndex.toString(),
       status: newStatus
     });
 
     try {
-      const updatedStatuses = { ...localStatuses, [orderId]: newStatus };
+      // Optimistic update locally
+      const updatedStatuses = { ...localStatuses, [order.id]: newStatus };
       setLocalStatuses(updatedStatuses);
       localStorage.setItem('cafe_order_statuses', JSON.stringify(updatedStatuses));
       
+      // Update remote Google Sheets
       await fetch(`${GAS_URL}?${params.toString()}`, { mode: 'no-cors' });
+      
+      // Optionally trigger immediate fetch to sync state
+      fetchOrders();
     } catch (err) {
       console.error('Failed to update status:', err);
     }
   };
 
-  const activeOrders = orders.filter(o => o.status !== 'تحویل داده شد');
-  const completedOrders = orders.filter(o => o.status === 'تحویل داده شد');
+  const activeOrders = orders.filter(o => o.status !== 'done');
+  const completedOrders = orders.filter(o => o.status === 'done');
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -505,7 +514,7 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
         return <Badge className="bg-red-500/10 text-red-500 border-red-500/20 flex items-center gap-1"><AlertCircle size={12} /> جدید</Badge>;
       case 'در حال آماده‌سازی':
         return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 flex items-center gap-1"><Clock size={12} /> در حال آماده‌سازی</Badge>;
-      case 'تحویل داده شد':
+      case 'done':
         return <Badge className="bg-green-500/10 text-green-500 border-green-500/20 flex items-center gap-1"><CheckCircle2 size={12} /> تحویل داده شد</Badge>;
       default:
         return <Badge className="bg-[#D4A853]/10 text-[#D4A853] border-[#D4A853]/20">{status}</Badge>;
@@ -556,13 +565,13 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
                   <div className="grid grid-cols-2 gap-2">
                     <Button 
                       variant="outline" 
-                      onClick={() => handleUpdateStatus(order.id, 'در حال آماده‌سازی')}
+                      onClick={() => handleUpdateStatus(order, 'در حال آماده‌سازی')}
                       className="border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 text-[10px] font-black flex items-center gap-2 h-10"
                     >
                       <Clock size={14} /> آماده‌سازی
                     </Button>
                     <Button 
-                      onClick={() => handleUpdateStatus(order.id, 'تحویل داده شد')}
+                      onClick={() => handleUpdateStatus(order, 'done')}
                       className="bg-green-600 hover:bg-green-700 text-white text-[10px] font-black flex items-center gap-2 h-10"
                     >
                       <CheckCircle2 size={14} /> تحویل
