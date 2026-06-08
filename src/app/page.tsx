@@ -1,4 +1,3 @@
-
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
@@ -22,7 +21,8 @@ import {
   PlusCircle,
   Pencil,
   Save,
-  X
+  X,
+  Upload
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,10 +30,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { generateMenuItemDescription } from '@/ai/flows/generate-menu-item-description';
 import { summarizeCustomerFeedback } from '@/ai/flows/summarize-customer-feedback-flow';
 import { useCollection, useFirestore } from '@/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -46,7 +47,6 @@ export default function CafeDidarApp() {
   
   const firestore = useFirestore();
 
-  // Real-time menu
   const menuQuery = useMemo(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'menu'));
@@ -89,14 +89,10 @@ export default function CafeDidarApp() {
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const handlePlaceOrder = () => {
-    if (!tableNumber) {
-      alert('لطفاً کد میز را با اسکن QR مجدداً وارد کنید.');
-      return;
-    }
     if (!firestore) return;
 
     const orderData = {
-      tableNumber,
+      tableNumber: tableNumber || 'بیرون‌بر',
       items: cart.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
       totalPrice: cartTotal,
       timestamp: new Date().toISOString(),
@@ -175,7 +171,6 @@ export default function CafeDidarApp() {
       <main className="mt-[60px] mb-[70px] flex-1 overflow-y-auto overflow-x-hidden relative">
         {currentView === 'MENU' && (
           <MenuView 
-            activeCategory="HOT"
             menu={menu} 
             cart={cart}
             addToCart={addToCart} 
@@ -253,8 +248,8 @@ function MenuView({
           const cartItem = cart.find(i => i.id === item.id);
           return (
             <div key={item.id} className="bg-[#2A1810] border border-[#3D2B24] rounded-2xl p-3 flex items-center gap-3 animate-fade-in group hover:border-[#D4A853]/30 transition-all" style={{ animationDelay: `${idx * 0.05}s` }}>
-              <div className="w-[70px] h-[70px] bg-[#3D2B24] rounded-xl flex items-center justify-center text-3xl overflow-hidden shrink-0 shadow-lg">
-                {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" /> : item.emoji}
+              <div className="w-[70px] h-[70px] bg-[#3D2B24] rounded-xl flex items-center justify-center text-3xl overflow-hidden shrink-0 shadow-lg border border-[#D4A853]/10">
+                {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" /> : <span className="text-2xl">{item.emoji || '🍽️'}</span>}
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-[#F5E6D3] font-bold text-sm truncate">{item.name}</h3>
@@ -337,17 +332,13 @@ function CartView({ cart, updateQuantity, removeFromCart, total, tableNumber, on
               <span className="text-[#A89B95]">جمع کل:</span>
               <span className="text-lg font-bold text-[#D4A853]">{(total / 1000).toLocaleString()} تومان</span>
             </div>
-            {tableNumber ? (
-              <div className="text-center p-3 bg-[#D4A853]/10 border border-[#D4A853]/30 rounded-xl mb-4">
-                <p className="text-[10px] text-[#A89B95]">سفارش برای میز شماره:</p>
-                <p className="text-2xl font-bold text-[#D4A853]">{tableNumber}</p>
-              </div>
-            ) : (
-              <p className="text-red-500 text-xs text-center mb-4">لطفاً QR کد روی میز را اسکن کنید.</p>
-            )}
+            <div className="text-center p-3 bg-[#D4A853]/10 border border-[#D4A853]/30 rounded-xl mb-4">
+              <p className="text-[10px] text-[#A89B95]">وضعیت تحویل:</p>
+              <p className="text-xl font-bold text-[#D4A853]">{tableNumber ? `میز شماره ${tableNumber}` : 'تحویل حضوری (بیرون‌بر)'}</p>
+            </div>
             <Button 
               onClick={onPlaceOrder} 
-              disabled={!tableNumber || cart.length === 0}
+              disabled={cart.length === 0}
               className="w-full mt-6 bg-[#D4A853] hover:bg-[#D4A853]/80 text-[#1C0F0A] font-bold h-12 text-lg rounded-xl shadow-lg"
             >
               ✅ ثبت سفارش
@@ -416,7 +407,6 @@ function LoyaltyView() {
   const [account, setAccount] = useState<{points: number} | null>(null);
 
   const handleSearch = () => {
-    // In a real app, this would be a Firestore query to 'loyalty' collection
     setAccount({ points: Math.floor(Math.random() * 200) });
   };
 
@@ -536,7 +526,7 @@ function AdminDashboard({ menu }: { menu: MenuItem[] }) {
               <Card key={order.id} className="bg-[#2A1810] border-[#3D2B24]">
                 <CardHeader className="p-4 flex flex-row items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="bg-[#D4A853] text-[#1C0F0A] w-8 h-8 rounded flex items-center justify-center font-bold">{order.tableNumber}</div>
+                    <div className="bg-[#D4A853] text-[#1C0F0A] w-8 h-8 rounded flex items-center justify-center font-bold">{order.tableNumber === 'بیرون‌بر' ? '📦' : order.tableNumber}</div>
                     <CardTitle className="text-sm">میز {order.tableNumber}</CardTitle>
                   </div>
                   <Badge className={order.status === 'NEW' ? 'bg-red-500' : ''}>{order.status}</Badge>
@@ -563,7 +553,7 @@ function AdminDashboard({ menu }: { menu: MenuItem[] }) {
 
         <TabsContent value="feedback" className="space-y-4">
            <Button onClick={handleSummarizeFeedback} disabled={isLoadingSummary || !feedback} className="w-full bg-[#D4A853]">تحلیل هوشمند نظرات</Button>
-           {summary && <div className="p-3 bg-[#3D2B24] rounded-lg text-xs">{summary.summary}</div>}
+           {summary && <div className="p-3 bg-[#3D2B24] rounded-lg text-xs leading-relaxed">{summary.summary}</div>}
            {feedback?.map((f, i) => (
              <div key={i} className="bg-[#2A1810] p-3 rounded-lg border border-[#3D2B24]">
                <div className="flex justify-between"><div className="flex">{[...Array(f.rating)].map((_,s)=> <Star key={s} size={10} fill="#D4A853" color="#D4A853" />)}</div></div>
@@ -588,19 +578,39 @@ function AdminDashboard({ menu }: { menu: MenuItem[] }) {
 function AdminMenuManager({ menu }: { menu: MenuItem[] }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
-  const [editForm, setEditForm] = useState<Partial<MenuItem>>({});
+  const [editForm, setEditForm] = useState<Partial<MenuItem>>({
+    name: '',
+    price: 0,
+    description: '',
+    category: 'HOT',
+    emoji: '',
+    image: ''
+  });
   const firestore = useFirestore();
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditForm(prev => ({ ...prev, image: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSave = () => {
     if (!firestore || !editForm.name) return;
+    const finalData = { ...editForm, price: Number(editForm.price) || 0 };
+    
     if (isAdding) {
-      addDoc(collection(firestore, 'menu'), editForm)
-        .then(() => { setIsAdding(false); setEditForm({}); })
-        .catch(async () => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'menu', operation: 'create', requestResourceData: editForm })));
+      addDoc(collection(firestore, 'menu'), finalData)
+        .then(() => { setIsAdding(false); setEditForm({ name: '', price: 0, description: '', category: 'HOT', emoji: '', image: '' }); })
+        .catch(async () => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'menu', operation: 'create', requestResourceData: finalData })));
     } else if (editingId) {
-      updateDoc(doc(firestore, 'menu', editingId), editForm)
-        .then(() => { setEditingId(null); setEditForm({}); })
-        .catch(async () => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `menu/${editingId}`, operation: 'update', requestResourceData: editForm })));
+      updateDoc(doc(firestore, 'menu', editingId), finalData)
+        .then(() => { setEditingId(null); setEditForm({ name: '', price: 0, description: '', category: 'HOT', emoji: '', image: '' }); })
+        .catch(async () => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `menu/${editingId}`, operation: 'update', requestResourceData: finalData })));
     }
   };
 
@@ -610,27 +620,89 @@ function AdminMenuManager({ menu }: { menu: MenuItem[] }) {
       .catch(async () => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `menu/${id}`, operation: 'delete' })));
   };
 
+  const startEdit = (item: MenuItem) => {
+    setEditingId(item.id);
+    setEditForm({ ...item });
+  };
+
   return (
     <div className="space-y-4">
-      <Button onClick={() => { setIsAdding(true); setEditForm({ category: 'HOT' }); }} className="w-full bg-[#D4A853] text-[#1C0F0A]">افزودن آیتم جدید</Button>
+      <Button onClick={() => { setIsAdding(true); setEditingId(null); setEditForm({ name: '', price: 0, description: '', category: 'HOT', emoji: '', image: '' }); }} className="w-full bg-[#D4A853] text-[#1C0F0A] font-bold">افزودن آیتم جدید</Button>
+      
       {(isAdding || editingId) && (
-        <Card className="bg-[#2A1810] p-4 space-y-3">
-          <Input placeholder="نام" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="bg-[#1C0F0A] border-[#3D2B24]" />
-          <Input placeholder="قیمت" type="number" value={editForm.price} onChange={e => setEditForm({...editForm, price: Number(e.target.value)})} className="bg-[#1C0F0A] border-[#3D2B24]" />
-          <Textarea placeholder="توضیحات" value={editForm.description} onChange={e => setEditForm({...editForm, description: e.target.value})} className="bg-[#1C0F0A] border-[#3D2B24]" />
+        <Card className="bg-[#2A1810] p-4 space-y-3 border-[#D4A853]/30 shadow-xl animate-slide-up">
           <div className="flex gap-2">
-            <Button onClick={handleSave} className="flex-1 bg-[#D4A853]">ذخیره</Button>
-            <Button onClick={() => { setIsAdding(false); setEditingId(null); }} variant="outline" className="flex-1">انصراف</Button>
+            <div className="flex-1">
+              <label className="text-[10px] text-[#A89B95] mr-2">نام آیتم</label>
+              <Input placeholder="مثلاً لاته غلیظ" value={editForm.name || ''} onChange={e => setEditForm({...editForm, name: e.target.value})} className="bg-[#1C0F0A] border-[#3D2B24]" />
+            </div>
+            <div className="w-24">
+              <label className="text-[10px] text-[#A89B95] mr-2">ایموجی</label>
+              <Input placeholder="☕" value={editForm.emoji || ''} onChange={e => setEditForm({...editForm, emoji: e.target.value})} className="bg-[#1C0F0A] border-[#3D2B24] text-center" />
+            </div>
+          </div>
+          
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="text-[10px] text-[#A89B95] mr-2">دسته بندی</label>
+              <Select value={editForm.category} onValueChange={(val: Category) => setEditForm({...editForm, category: val})}>
+                <SelectTrigger className="bg-[#1C0F0A] border-[#3D2B24]">
+                  <SelectValue placeholder="انتخاب دسته" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#2A1810] border-[#3D2B24]">
+                  <SelectItem value="HOT">☕ بار گرم</SelectItem>
+                  <SelectItem value="COLD">🍹 بار سرد</SelectItem>
+                  <SelectItem value="DESSERT">🍰 دسر</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-32">
+              <label className="text-[10px] text-[#A89B95] mr-2">قیمت (تومان)</label>
+              <Input placeholder="120000" type="number" value={editForm.price || ''} onChange={e => setEditForm({...editForm, price: Number(e.target.value)})} className="bg-[#1C0F0A] border-[#3D2B24]" />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[10px] text-[#A89B95] mr-2">توضیحات</label>
+            <Textarea placeholder="توضیحات جذاب بنویسید..." value={editForm.description || ''} onChange={e => setEditForm({...editForm, description: e.target.value})} className="bg-[#1C0F0A] border-[#3D2B24] min-h-[80px]" />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] text-[#A89B95] mr-2">تصویر آیتم</label>
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-[#1C0F0A] rounded-lg border border-[#3D2B24] flex items-center justify-center overflow-hidden">
+                {editForm.image ? <img src={editForm.image} className="w-full h-full object-cover" /> : <ImageIcon size={20} className="text-[#3D2B24]" />}
+              </div>
+              <label className="flex-1 flex items-center justify-center gap-2 bg-[#3D2B24] hover:bg-[#4D3B34] text-xs py-3 rounded-lg cursor-pointer transition-colors border border-dashed border-[#A89B95]/30">
+                <Upload size={14} /> بارگذاری تصویر
+                <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+              </label>
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button onClick={handleSave} className="flex-1 bg-[#D4A853] text-[#1C0F0A] font-bold">ذخیره آیتم</Button>
+            <Button onClick={() => { setIsAdding(false); setEditingId(null); }} variant="outline" className="flex-1 border-[#3D2B24] text-[#A89B95]">انصراف</Button>
           </div>
         </Card>
       )}
-      <div className="space-y-2">
+
+      <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+        {menu.length === 0 && <p className="text-center text-xs text-[#A89B95] py-10">منو هنوز خالی است.</p>}
         {menu.map(item => (
-          <div key={item.id} className="bg-[#2A1810] p-3 rounded-xl flex justify-between items-center border border-[#3D2B24]">
-            <span className="text-sm">{item.name}</span>
-            <div className="flex gap-2">
-              <Button size="icon" variant="ghost" onClick={() => { setEditingId(item.id); setEditForm(item); }}><Pencil size={14} /></Button>
-              <Button size="icon" variant="ghost" onClick={() => handleDelete(item.id)} className="text-red-500"><Trash2 size={14} /></Button>
+          <div key={item.id} className="bg-[#2A1810] p-3 rounded-xl flex justify-between items-center border border-[#3D2B24] hover:border-[#D4A853]/20 transition-all">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[#1C0F0A] flex items-center justify-center text-sm border border-[#D4A853]/10">
+                {item.image ? <img src={item.image} className="w-full h-full object-cover rounded-lg" /> : item.emoji}
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-bold">{item.name}</span>
+                <span className="text-[10px] text-[#A89B95]">{(item.price/1000).toLocaleString()} تومان</span>
+              </div>
+            </div>
+            <div className="flex gap-1">
+              <Button size="icon" variant="ghost" onClick={() => startEdit(item)} className="h-8 w-8 text-[#A89B95] hover:text-[#D4A853]"><Pencil size={14} /></Button>
+              <Button size="icon" variant="ghost" onClick={() => handleDelete(item.id)} className="h-8 w-8 text-red-500/50 hover:text-red-500 hover:bg-red-500/10"><Trash2 size={14} /></Button>
             </div>
           </div>
         ))}
