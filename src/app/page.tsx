@@ -20,7 +20,8 @@ import {
   Pencil,
   Upload,
   Sparkles,
-  ChevronLeft
+  ChevronLeft,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +31,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { summarizeCustomerFeedback } from '@/ai/flows/summarize-customer-feedback-flow';
+import { generateMenuItemDescription } from '@/ai/flows/generate-menu-item-description';
 import { useCollection, useFirestore } from '@/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -105,7 +107,7 @@ export default function CafeDidarApp() {
           setIsSuccess(false);
           setCart([]);
           setCurrentView('MENU');
-        }, 3000);
+        }, 3500);
       })
       .catch(async () => {
         const permissionError = new FirestorePermissionError({
@@ -333,17 +335,23 @@ function CartView({ cart, updateQuantity, removeFromCart, total, tableNumber, on
     return (
       <div className="flex flex-col items-center justify-center h-[70vh] animate-fade-in p-6">
         <div className="relative mb-8">
-           <div className="absolute inset-0 bg-[#D4A853] rounded-full animate-ping opacity-20"></div>
-           <div className="relative w-24 h-24 bg-gradient-to-br from-[#D4A853] to-[#B88A3E] rounded-full flex items-center justify-center text-[#1C0F0A] shadow-[0_0_30px_rgba(212,168,83,0.5)]">
-             <CheckCircle2 size={56} className="animate-bounce-subtle" />
+           <div className="absolute inset-0 bg-[#D4A853] rounded-full animate-ping opacity-20 scale-150"></div>
+           <div className="absolute inset-0 bg-[#D4A853] rounded-full animate-ping opacity-10 scale-[2]"></div>
+           <div className="relative w-28 h-28 bg-gradient-to-br from-[#D4A853] to-[#B88A3E] rounded-full flex items-center justify-center text-[#1C0F0A] shadow-[0_0_50px_rgba(212,168,83,0.6)] z-10">
+             <CheckCircle2 size={64} className="animate-bounce-subtle" />
            </div>
         </div>
-        <h2 className="text-2xl font-black text-[#D4A853] mb-2">سفارش ثبت شد</h2>
-        <p className="text-[#A89B95] text-center max-w-[250px] leading-relaxed">با سپاس از انتخاب شما، سفارش شما در اسرع وقت آماده خواهد شد.</p>
-        <div className="mt-8 flex gap-2">
-           <div className="w-1.5 h-1.5 rounded-full bg-[#D4A853] animate-bounce [animation-delay:-0.3s]"></div>
-           <div className="w-1.5 h-1.5 rounded-full bg-[#D4A853] animate-bounce [animation-delay:-0.15s]"></div>
-           <div className="w-1.5 h-1.5 rounded-full bg-[#D4A853] animate-bounce"></div>
+        <div className="text-center animate-slide-up [animation-delay:0.3s]">
+          <h2 className="text-3xl font-black text-[#D4A853] mb-3 tracking-tighter">سفارش ثبت شد</h2>
+          <p className="text-[#A89B95] text-center max-w-[280px] leading-relaxed text-sm">
+            با سپاس از انتخاب شما برای میز شماره <span className="text-[#F5E6D3] font-bold">{tableNumber || 'بیرون‌بر'}</span>. 
+            سفارش شما در اسرع وقت آماده خواهد شد.
+          </p>
+        </div>
+        <div className="mt-12 flex gap-3">
+           <div className="w-2 h-2 rounded-full bg-[#D4A853] animate-bounce [animation-delay:-0.3s]"></div>
+           <div className="w-2 h-2 rounded-full bg-[#D4A853] animate-bounce [animation-delay:-0.15s]"></div>
+           <div className="w-2 h-2 rounded-full bg-[#D4A853] animate-bounce"></div>
         </div>
       </div>
     );
@@ -735,6 +743,7 @@ function AdminDashboard({ menu }: { menu: MenuItem[] }) {
 function AdminMenuManager({ menu }: { menu: MenuItem[] }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [isAiLoading, setIsAiLoading] = useState(false);
   const [editForm, setEditForm] = useState<Partial<MenuItem>>({
     name: '',
     price: 0,
@@ -753,6 +762,22 @@ function AdminMenuManager({ menu }: { menu: MenuItem[] }) {
         setEditForm(prev => ({ ...prev, image: reader.result as string }));
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAiDescribe = async () => {
+    if (!editForm.name) return;
+    setIsAiLoading(true);
+    try {
+      const result = await generateMenuItemDescription({ 
+        itemName: editForm.name, 
+        keywords: [editForm.category || 'HOT', editForm.emoji || ''] 
+      });
+      setEditForm(prev => ({ ...prev, description: result.description }));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsAiLoading(false);
     }
   };
 
@@ -812,15 +837,16 @@ function AdminMenuManager({ menu }: { menu: MenuItem[] }) {
       
       {(isAdding || editingId) && (
         <Card className="bg-[#2A1810] p-6 space-y-4 border-[#D4A853]/40 shadow-2xl animate-slide-up rounded-3xl relative">
-          <button onClick={() => { setIsAdding(false); setEditingId(null); }} className="absolute top-4 left-4 text-[#A89B95]"><Minus /></button>
+          <button onClick={() => { setIsAdding(false); setEditingId(null); }} className="absolute top-4 left-4 text-[#A89B95] hover:text-[#D4A853] transition-colors"><Minus /></button>
+          
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="text-[10px] text-[#D4A853] mr-2 font-bold uppercase tracking-wider">نام آیتم</label>
-              <Input placeholder="مثلاً کاپوچینو ویژه" value={editForm.name || ''} onChange={e => setEditForm({...editForm, name: e.target.value})} className="bg-[#1C0F0A] border-[#3D2B24] h-12 rounded-xl" />
+              <Input placeholder="مثلاً کاپوچینو ویژه" value={editForm.name || ''} onChange={e => setEditForm({...editForm, name: e.target.value})} className="bg-[#1C0F0A] border-[#3D2B24] h-12 rounded-xl focus:ring-[#D4A853]" />
             </div>
             <div className="w-24">
               <label className="text-[10px] text-[#D4A853] mr-2 font-bold uppercase tracking-wider">ایموجی</label>
-              <Input placeholder="☕" value={editForm.emoji || ''} onChange={e => setEditForm({...editForm, emoji: e.target.value})} className="bg-[#1C0F0A] border-[#3D2B24] h-12 text-center rounded-xl" />
+              <Input placeholder="☕" value={editForm.emoji || ''} onChange={e => setEditForm({...editForm, emoji: e.target.value})} className="bg-[#1C0F0A] border-[#3D2B24] h-12 text-center rounded-xl focus:ring-[#D4A853]" />
             </div>
           </div>
           
@@ -840,13 +866,21 @@ function AdminMenuManager({ menu }: { menu: MenuItem[] }) {
             </div>
             <div className="w-32">
               <label className="text-[10px] text-[#D4A853] mr-2 font-bold uppercase tracking-wider">قیمت (تومان)</label>
-              <Input placeholder="150000" type="number" value={editForm.price || ''} onChange={e => setEditForm({...editForm, price: Number(e.target.value)})} className="bg-[#1C0F0A] border-[#3D2B24] h-12 rounded-xl" />
+              <Input placeholder="150000" type="number" value={editForm.price || ''} onChange={e => setEditForm({...editForm, price: Number(e.target.value)})} className="bg-[#1C0F0A] border-[#3D2B24] h-12 rounded-xl focus:ring-[#D4A853]" />
             </div>
           </div>
 
-          <div>
+          <div className="relative">
             <label className="text-[10px] text-[#D4A853] mr-2 font-bold uppercase tracking-wider">توضیحات</label>
-            <Textarea placeholder="ترکیب دانه‌های عربیکا..." value={editForm.description || ''} onChange={e => setEditForm({...editForm, description: e.target.value})} className="bg-[#1C0F0A] border-[#3D2B24] min-h-[100px] rounded-xl p-3" />
+            <Textarea placeholder="ترکیب دانه‌های عربیکا..." value={editForm.description || ''} onChange={e => setEditForm({...editForm, description: e.target.value})} className="bg-[#1C0F0A] border-[#3D2B24] min-h-[100px] rounded-xl p-3 focus:ring-[#D4A853]" />
+            <button 
+              onClick={handleAiDescribe}
+              disabled={isAiLoading || !editForm.name}
+              className="absolute bottom-3 left-3 bg-[#D4A853]/10 hover:bg-[#D4A853]/20 text-[#D4A853] p-2 rounded-lg transition-all disabled:opacity-30"
+              title="تولید توضیحات با هوش مصنوعی"
+            >
+              {isAiLoading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+            </button>
           </div>
 
           <div className="space-y-3">
@@ -864,8 +898,8 @@ function AdminMenuManager({ menu }: { menu: MenuItem[] }) {
           </div>
 
           <div className="flex gap-3 pt-4">
-            <Button onClick={handleSave} className="flex-1 bg-[#D4A853] text-[#1C0F0A] font-black h-14 rounded-2xl">ذخیره نهایی</Button>
-            <Button onClick={() => { setIsAdding(false); setEditingId(null); }} variant="outline" className="flex-1 border-[#3D2B24] text-[#A89B95] h-14 rounded-2xl">انصراف</Button>
+            <Button onClick={handleSave} className="flex-1 bg-[#D4A853] text-[#1C0F0A] font-black h-14 rounded-2xl shadow-lg hover:bg-[#D4A853]/90 transition-all">ذخیره نهایی</Button>
+            <Button onClick={() => { setIsAdding(false); setEditingId(null); }} variant="outline" className="flex-1 border-[#3D2B24] text-[#A89B95] h-14 rounded-2xl hover:bg-[#1C0F0A]">انصراف</Button>
           </div>
         </Card>
       )}
@@ -898,4 +932,3 @@ function AdminMenuManager({ menu }: { menu: MenuItem[] }) {
     </div>
   );
 }
-
