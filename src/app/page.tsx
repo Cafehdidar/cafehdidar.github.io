@@ -1,3 +1,4 @@
+
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
@@ -25,7 +26,9 @@ import {
   Box,
   LayoutDashboard,
   TrendingUp,
-  Clock
+  Clock,
+  UserPlus,
+  Users
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,7 +40,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { summarizeCustomerFeedback } from '@/ai/flows/summarize-customer-feedback-flow';
 import { generateMenuItemDescription } from '@/ai/flows/generate-menu-item-description';
 import { useCollection, useFirestore } from '@/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp, limit } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp, limit, where, getDocs } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { cn } from '@/lib/utils';
@@ -51,7 +54,7 @@ export default function CafeDidarApp() {
   
   const firestore = useFirestore();
 
-  // Optimized Menu Query
+  // Load Menu Real-time
   const menuQuery = useMemo(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'menu'), orderBy('name', 'asc'));
@@ -60,7 +63,7 @@ export default function CafeDidarApp() {
   const { data: menuData, loading: menuLoading } = useCollection<MenuItem>(menuQuery);
   const menu = menuData || [];
 
-  // Table number detection from URL
+  // Capture table number from URL
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -495,11 +498,29 @@ function FeedbackView() {
 
 function LoyaltyView() {
   const [phone, setPhone] = useState('');
-  const [account, setAccount] = useState<{points: number} | null>(null);
+  const [account, setAccount] = useState<{phoneNumber: string, points: number, level?: string} | null>(null);
+  const [loading, setLoading] = useState(false);
+  const firestore = useFirestore();
 
-  const handleSearch = () => {
-    if (phone.length < 10) return;
-    setAccount({ points: 2750 });
+  const handleSearch = async () => {
+    if (phone.length < 10 || !firestore) return;
+    setLoading(true);
+    try {
+      const q = query(collection(firestore, 'members'), where('phoneNumber', '==', phone));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0];
+        setAccount({ id: doc.id, ...doc.data() } as any);
+      } else {
+        // If not found, maybe show a "not found" state or create one (simulated)
+        setAccount(null);
+        alert('شماره یافت نشد. با مدیریت تماس بگیرید.');
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -520,7 +541,9 @@ function LoyaltyView() {
             placeholder="۰۹********* " 
             className="bg-[#1C0F0A] border-[#3D2B24] text-center rounded-2xl h-16 text-2xl font-black tracking-[0.3em] focus:border-[#D4A853] text-[#D4A853]" 
           />
-          <Button onClick={handleSearch} className="w-full bg-[#D4A853] text-[#1C0F0A] font-black h-16 rounded-2xl shadow-xl text-lg border-none active:scale-[0.98]">بررسی موجودی</Button>
+          <Button onClick={handleSearch} disabled={loading} className="w-full bg-[#D4A853] text-[#1C0F0A] font-black h-16 rounded-2xl shadow-xl text-lg border-none active:scale-[0.98]">
+            {loading ? <Loader2 className="animate-spin" /> : 'بررسی موجودی'}
+          </Button>
         </div>
       ) : (
         <div className="space-y-8 animate-slide-up">
@@ -531,7 +554,7 @@ function LoyaltyView() {
                 <div className="flex justify-between items-start">
                    <div>
                       <h3 className="font-black text-2xl tracking-tighter">کافه دیدار</h3>
-                      <p className="text-[10px] opacity-70 font-black uppercase tracking-[0.2em] mt-1">Diamond Privilege</p>
+                      <p className="text-[10px] opacity-70 font-black uppercase tracking-[0.2em] mt-1">{account.level || 'Diamond Privilege'}</p>
                    </div>
                    <Sparkles className="text-[#1C0F0A] opacity-50 animate-bounce-subtle" size={28} />
                 </div>
@@ -541,7 +564,7 @@ function LoyaltyView() {
                       <p className="text-6xl font-black tracking-tighter drop-shadow-lg">{account.points.toLocaleString()}</p>
                    </div>
                    <div className="text-right">
-                      <p className="text-[12px] font-black opacity-90 tracking-widest">{phone}</p>
+                      <p className="text-[12px] font-black opacity-90 tracking-widest">{account.phoneNumber}</p>
                       <p className="text-[9px] opacity-70 font-black mt-1">SINCE 2024</p>
                    </div>
                 </div>
@@ -550,11 +573,11 @@ function LoyaltyView() {
           <div className="grid grid-cols-2 gap-4">
              <div className="bg-[#2A1810] p-6 rounded-[30px] border border-[#3D2B24] text-center shadow-lg hover:border-[#D4A853]/40 transition-colors">
                 <p className="text-[10px] text-[#A89B95] font-black uppercase tracking-widest mb-2">Member Level</p>
-                <p className="text-xl font-black text-[#D4A853]">الماس طلایی</p>
+                <p className="text-xl font-black text-[#D4A853]">{account.level || 'الماس طلایی'}</p>
              </div>
              <div className="bg-[#2A1810] p-6 rounded-[30px] border border-[#3D2B24] text-center shadow-lg hover:border-[#D4A853]/40 transition-colors">
-                <p className="text-[10px] text-[#A89B95] font-black uppercase tracking-widest mb-2">Visits</p>
-                <p className="text-xl font-black text-[#D4A853]">۳۴ مرتبه</p>
+                <p className="text-[10px] text-[#A89B95] font-black uppercase tracking-widest mb-2">Loyalty</p>
+                <p className="text-xl font-black text-[#D4A853]">فعال</p>
              </div>
           </div>
           <Button onClick={() => setAccount(null)} variant="ghost" className="w-full text-[#A89B95] font-bold h-12">تغییر شماره همراه</Button>
@@ -565,25 +588,37 @@ function LoyaltyView() {
 }
 
 function GalleryView() {
-  const images = [
-    { id: 1, url: "https://picsum.photos/seed/didar101/600/600", hint: "luxury cafe" },
-    { id: 2, url: "https://picsum.photos/seed/didar102/600/600", hint: "persian tea" },
-    { id: 3, url: "https://picsum.photos/seed/didar103/600/600", hint: "cafe dessert" },
-    { id: 4, url: "https://picsum.photos/seed/didar104/600/600", hint: "modern interior" },
-    { id: 5, url: "https://picsum.photos/seed/didar105/600/600", hint: "espresso shot" },
-    { id: 6, url: "https://picsum.photos/seed/didar106/600/600", hint: "cafe pastry" },
-  ];
+  const firestore = useFirestore();
+  const galleryQuery = useMemo(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'gallery'), orderBy('createdAt', 'desc'));
+  }, [firestore]);
+  
+  const { data: galleryItems, loading } = useCollection<any>(galleryQuery);
+
   return (
     <div className="p-4 animate-fade-in pb-20">
       <h2 className="text-3xl font-black text-[#D4A853] mb-8 text-center tracking-tight">گالری دیدار</h2>
-      <div className="grid grid-cols-2 gap-4">
-        {images.map((img) => (
-          <div key={img.id} className="aspect-square bg-[#2A1810] rounded-[24px] border border-[#3D2B24] overflow-hidden shadow-2xl group relative">
-            <img src={img.url} data-ai-hint={img.hint} alt="Kafe Didar" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          </div>
-        ))}
-      </div>
+      {loading ? (
+        <div className="grid grid-cols-2 gap-4">
+           {[...Array(6)].map((_, i) => <div key={i} className="aspect-square bg-[#2A1810] rounded-[24px] animate-pulse border border-[#3D2B24]" />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4">
+          {galleryItems?.map((img) => (
+            <div key={img.id} className="aspect-square bg-[#2A1810] rounded-[24px] border border-[#3D2B24] overflow-hidden shadow-2xl group relative">
+              <img src={img.url} data-ai-hint={img.hint || "cafe"} alt="Kafe Didar" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            </div>
+          ))}
+          {(!galleryItems || galleryItems.length === 0) && (
+            <div className="col-span-2 text-center py-20 opacity-20">
+               <ImageIcon size={48} className="mx-auto mb-4 stroke-1" />
+               <p className="text-sm font-bold">هنوز تصویری در گالری ثبت نشده است.</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -623,20 +658,23 @@ function AdminLogin({ onLoginSuccess }: { onLoginSuccess: () => void }) {
 function AdminDashboard({ menu }: { menu: MenuItem[] }) {
   const firestore = useFirestore();
   
-  // Real-time queries for admin dashboard
   const ordersQuery = useMemo(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'orders'), orderBy('createdAt', 'desc'), limit(50));
   }, [firestore]);
-  
   const { data: orders, loading: ordersLoading } = useCollection<Order>(ordersQuery);
 
   const feedbackQuery = useMemo(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'feedback'), orderBy('createdAt', 'desc'), limit(100));
   }, [firestore]);
-  
   const { data: feedback } = useCollection<any>(feedbackQuery);
+
+  const membersQuery = useMemo(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'members'), limit(100));
+  }, [firestore]);
+  const { data: members } = useCollection<any>(membersQuery);
 
   const [summary, setSummary] = useState<any>(null);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
@@ -684,11 +722,12 @@ function AdminDashboard({ menu }: { menu: MenuItem[] }) {
       </div>
 
       <Tabs defaultValue="orders" className="w-full">
-        <TabsList className="bg-[#2A1810] grid grid-cols-4 h-16 mb-8 rounded-2xl p-1.5 border border-[#3D2B24] shadow-2xl">
-          <TabsTrigger value="orders" className="rounded-xl data-[state=active]:bg-[#D4A853] data-[state=active]:text-[#1C0F0A] transition-all"><ListOrdered size={22} /></TabsTrigger>
-          <TabsTrigger value="menu" className="rounded-xl data-[state=active]:bg-[#D4A853] data-[state=active]:text-[#1C0F0A] transition-all"><Coffee size={22} /></TabsTrigger>
-          <TabsTrigger value="feedback" className="rounded-xl data-[state=active]:bg-[#D4A853] data-[state=active]:text-[#1C0F0A] transition-all"><MessageCircle size={22} /></TabsTrigger>
-          <TabsTrigger value="qr" className="rounded-xl data-[state=active]:bg-[#D4A853] data-[state=active]:text-[#1C0F0A] transition-all"><QrCode size={22} /></TabsTrigger>
+        <TabsList className="bg-[#2A1810] grid grid-cols-5 h-16 mb-8 rounded-2xl p-1.5 border border-[#3D2B24] shadow-2xl">
+          <TabsTrigger value="orders" className="rounded-xl data-[state=active]:bg-[#D4A853] data-[state=active]:text-[#1C0F0A] transition-all"><ListOrdered size={18} /></TabsTrigger>
+          <TabsTrigger value="menu" className="rounded-xl data-[state=active]:bg-[#D4A853] data-[state=active]:text-[#1C0F0A] transition-all"><Coffee size={18} /></TabsTrigger>
+          <TabsTrigger value="members" className="rounded-xl data-[state=active]:bg-[#D4A853] data-[state=active]:text-[#1C0F0A] transition-all"><Users size={18} /></TabsTrigger>
+          <TabsTrigger value="gallery" className="rounded-xl data-[state=active]:bg-[#D4A853] data-[state=active]:text-[#1C0F0A] transition-all"><ImageIcon size={18} /></TabsTrigger>
+          <TabsTrigger value="feedback" className="rounded-xl data-[state=active]:bg-[#D4A853] data-[state=active]:text-[#1C0F0A] transition-all"><MessageCircle size={18} /></TabsTrigger>
         </TabsList>
         
         <TabsContent value="orders" className="space-y-4">
@@ -765,6 +804,14 @@ function AdminDashboard({ menu }: { menu: MenuItem[] }) {
            <AdminMenuManager menu={menu} />
         </TabsContent>
 
+        <TabsContent value="members">
+           <AdminMemberManager members={members || []} />
+        </TabsContent>
+
+        <TabsContent value="gallery">
+           <AdminGalleryManager />
+        </TabsContent>
+
         <TabsContent value="feedback" className="space-y-6">
            <Button onClick={handleSummarizeFeedback} disabled={isLoadingSummary || !feedback} className="w-full bg-[#D4A853] text-[#1C0F0A] font-black h-16 rounded-2xl shadow-xl flex items-center justify-center gap-3 text-lg border-none active:scale-[0.98]">
              {isLoadingSummary ? <Loader2 className="animate-spin" /> : <Sparkles size={24} />}
@@ -801,19 +848,99 @@ function AdminDashboard({ menu }: { menu: MenuItem[] }) {
              ))}
            </div>
         </TabsContent>
-
-        <TabsContent value="qr" className="grid grid-cols-2 gap-4 pb-20">
-           {[...Array(8)].map((_, i) => (
-             <Card key={i} className="bg-white p-4 text-black text-center rounded-3xl shadow-xl border-none flex flex-col items-center">
-                <p className="text-[10px] font-black mb-3 tracking-tighter bg-black text-white px-3 py-1 rounded-full">میز شماره {i+1}</p>
-                <div className="bg-[#F5E6D3]/40 p-2 rounded-2xl mb-3">
-                   <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${typeof window !== 'undefined' ? window.location.origin : ''}?table=${i+1}`} alt="QR" className="w-full rounded-xl" />
-                </div>
-                <p className="text-[8px] opacity-40 font-black uppercase tracking-widest">Cafe Didar Digital Menu</p>
-             </Card>
-           ))}
-        </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function AdminMemberManager({ members }: { members: any[] }) {
+  const [isAdding, setIsAdding] = useState(false);
+  const [form, setForm] = useState({ phoneNumber: '', name: '', points: 0, level: 'طلایی' });
+  const firestore = useFirestore();
+
+  const handleSave = () => {
+    if (!firestore || !form.phoneNumber) return;
+    addDoc(collection(firestore, 'members'), { ...form, points: Number(form.points) })
+      .then(() => { setIsAdding(false); setForm({ phoneNumber: '', name: '', points: 0, level: 'طلایی' }); });
+  };
+
+  return (
+    <div className="space-y-4">
+      <Button onClick={() => setIsAdding(!isAdding)} className="w-full bg-[#D4A853] text-[#1C0F0A] font-black h-14 rounded-2xl">
+        {isAdding ? 'انصراف' : '+ افزودن عضو جدید'}
+      </Button>
+
+      {isAdding && (
+        <Card className="bg-[#2A1810] border-[#D4A853]/20 p-4 space-y-4 rounded-3xl">
+          <Input placeholder="شماره تماس" value={form.phoneNumber} onChange={e => setForm({...form, phoneNumber: e.target.value})} className="bg-[#1C0F0A] border-[#3D2B24] h-12" />
+          <Input placeholder="نام و نام خانوادگی" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="bg-[#1C0F0A] border-[#3D2B24] h-12" />
+          <Input type="number" placeholder="امتیاز اولیه" value={form.points} onChange={e => setForm({...form, points: Number(e.target.value)})} className="bg-[#1C0F0A] border-[#3D2B24] h-12" />
+          <Button onClick={handleSave} className="w-full bg-[#D4A853] text-[#1C0F0A] font-black">ثبت عضو</Button>
+        </Card>
+      )}
+
+      <div className="space-y-2">
+        {members.map(m => (
+          <div key={m.id} className="bg-[#2A1810] p-4 rounded-2xl border border-[#3D2B24] flex justify-between items-center">
+            <div>
+              <p className="font-bold text-sm text-[#F5E6D3]">{m.name || 'بدون نام'}</p>
+              <p className="text-[10px] text-[#A89B95]">{m.phoneNumber}</p>
+            </div>
+            <div className="text-right">
+              <Badge className="bg-[#D4A853] text-[#1C0F0A]">{m.points} امتیاز</Badge>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AdminGalleryManager() {
+  const firestore = useFirestore();
+  const galleryQuery = useMemo(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'gallery'), orderBy('createdAt', 'desc'));
+  }, [firestore]);
+  const { data: images } = useCollection<any>(galleryQuery);
+
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && firestore) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        addDoc(collection(firestore, 'gallery'), {
+          url: reader.result as string,
+          createdAt: serverTimestamp(),
+          hint: 'cafe luxury'
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    if (!firestore || !confirm('آیا حذف شود؟')) return;
+    deleteDoc(doc(firestore, 'gallery', id));
+  };
+
+  return (
+    <div className="space-y-4">
+      <label className="w-full bg-[#D4A853] text-[#1C0F0A] font-black h-14 rounded-2xl flex items-center justify-center gap-2 cursor-pointer">
+        <Upload size={20} /> افزودن تصویر به گالری
+        <input type="file" className="hidden" accept="image/*" onChange={handleUpload} />
+      </label>
+
+      <div className="grid grid-cols-3 gap-2">
+        {images?.map(img => (
+          <div key={img.id} className="relative aspect-square rounded-xl overflow-hidden group">
+            <img src={img.url} className="w-full h-full object-cover" alt="" />
+            <button onClick={() => handleDelete(img.id)} className="absolute inset-0 bg-red-500/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <Trash2 size={24} className="text-white" />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

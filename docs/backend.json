@@ -49,6 +49,29 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["rating", "timestamp"]
+    },
+    "Member": {
+      "title": "Member",
+      "description": "A loyalty club member.",
+      "type": "object",
+      "properties": {
+        "phoneNumber": { "type": "string" },
+        "points": { "type": "number" },
+        "name": { "type": "string" },
+        "level": { "type": "string" }
+      },
+      "required": ["phoneNumber", "points"]
+    },
+    "GalleryImage": {
+      "title": "GalleryImage",
+      "description": "An image for the cafe gallery.",
+      "type": "object",
+      "properties": {
+        "url": { "type": "string", "description": "Base64 encoded image data" },
+        "hint": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["url"]
     }
   },
   "auth": {
@@ -66,6 +89,14 @@
     "/feedback/{feedbackId}": {
       "schema": "Feedback",
       "description": "Collection of customer feedback entries."
+    },
+    "/members/{memberId}": {
+      "schema": "Member",
+      "description": "Collection of loyalty club members."
+    },
+    "/gallery/{imageId}": {
+      "schema": "GalleryImage",
+      "description": "Collection of gallery images."
     }
   }
 }
