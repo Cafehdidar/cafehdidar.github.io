@@ -22,7 +22,8 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
-  ClipboardCheck
+  ClipboardCheck,
+  Package
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,9 +51,6 @@ export default function CafeDidarApp() {
   const [gallery, setGallery] = useState<any[]>([]);
 
   useEffect(() => {
-    localStorage.setItem('test', 'hello');
-    console.log('test:', localStorage.getItem('test'));
-
     const storedMenu = localStorage.getItem('cafe_menu');
     setMenu(storedMenu ? JSON.parse(storedMenu) : DEFAULT_MENU);
 
@@ -124,7 +122,7 @@ export default function CafeDidarApp() {
       tableNumber: table,
       items: itemsStr,
       totalPrice: cartTotal.toString(),
-      status: 'در انتظار تایید'
+      status: 'new'
     });
 
     try {
@@ -436,20 +434,8 @@ function AdminLogin({ onLoginSuccess }: any) {
 
 function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery, setGallery }: any) {
   const [rawOrders, setRawOrders] = useState<any[]>([]);
-  const [localStatuses, setLocalStatuses] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState('orders');
   const [isCompletedExpanded, setIsCompletedExpanded] = useState(false);
-
-  useEffect(() => {
-    const stored = localStorage.getItem('cafe_order_statuses');
-    if (stored) {
-      try {
-        setLocalStatuses(JSON.parse(stored));
-      } catch (e) {
-        console.error('Failed to parse local statuses');
-      }
-    }
-  }, []);
 
   const fetchOrders = async () => {
     try {
@@ -468,21 +454,16 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
   }, []);
 
   const orders = useMemo(() => {
-    return rawOrders.map((o, index) => {
-      let finalStatus = o.status;
-      if (finalStatus !== 'done') {
-        // Default new orders to "Pending Review" if no local override exists
-        finalStatus = localStatuses[o.id] || 'در انتظار تایید';
-      }
-      return {
-        ...o,
-        rowIndex: index + 2,
-        status: finalStatus
-      };
-    });
-  }, [rawOrders, localStatuses]);
+    return rawOrders.map((o, index) => ({
+      ...o,
+      rowIndex: index + 2, // Assuming header is row 1
+    }));
+  }, [rawOrders]);
 
   const handleUpdateStatus = async (order: any, newStatus: string) => {
+    // Optimistic update
+    setRawOrders(prev => prev.map((o, idx) => (idx + 2 === order.rowIndex ? { ...o, status: newStatus } : o)));
+
     const params = new URLSearchParams({
       action: 'updateStatus',
       rowIndex: order.rowIndex.toString(),
@@ -490,12 +471,9 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
     });
 
     try {
-      const updatedStatuses = { ...localStatuses, [order.id]: newStatus };
-      setLocalStatuses(updatedStatuses);
-      localStorage.setItem('cafe_order_statuses', JSON.stringify(updatedStatuses));
-      
       await fetch(`${GAS_URL}?${params.toString()}`, { mode: 'no-cors' });
-      fetchOrders();
+      // Reload from server to confirm
+      setTimeout(fetchOrders, 2000);
     } catch (err) {
       console.error('Failed to update status:', err);
     }
@@ -506,14 +484,12 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'در انتظار تایید':
-        return <Badge className="bg-red-500/10 text-red-500 border-red-500/20 flex items-center gap-1"><AlertCircle size={12} /> در انتظار تایید</Badge>;
-      case 'در حال آماده‌سازی':
+      case 'preparing':
         return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 flex items-center gap-1"><Clock size={12} /> در حال آماده‌سازی</Badge>;
       case 'done':
         return <Badge className="bg-green-500/10 text-green-500 border-green-500/20 flex items-center gap-1"><CheckCircle2 size={12} /> تحویل داده شد</Badge>;
       default:
-        return <Badge className="bg-[#D4A853]/10 text-[#D4A853] border-[#D4A853]/20">{status}</Badge>;
+        return <Badge className="bg-red-500/10 text-red-500 border-red-500/20 flex items-center gap-1"><AlertCircle size={12} /> جدید</Badge>;
     }
   };
 
@@ -544,8 +520,8 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
             {activeOrders.length === 0 && (
               <p className="text-center text-[#A89B95] py-10 opacity-50">هیچ سفارش جاری وجود ندارد</p>
             )}
-            {activeOrders.map((order, i) => (
-              <Card key={i} className="bg-[#2A1810] border-[#3D2B24] overflow-hidden">
+            {activeOrders.map((order) => (
+              <Card key={order.rowIndex} className="bg-[#2A1810] border-[#3D2B24] overflow-hidden">
                 <CardHeader className="p-4 flex flex-row items-center justify-between border-b border-[#3D2B24]/50">
                   <div className="flex flex-col">
                     <span className="text-xs font-black text-[#F5E6D3]">{order.tableNumber === 'Takeout' ? '📦 بیرون‌بر' : `میز ${order.tableNumber}`}</span>
@@ -559,30 +535,23 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
                     <span className="text-lg font-black text-[#D4A853]">{(Number(order.totalPrice) / 1000).toLocaleString()} تومان</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    {order.status === 'در انتظار تایید' ? (
-                      <Button 
-                        onClick={() => handleUpdateStatus(order, 'در حال آماده‌سازی')}
-                        className="col-span-2 bg-[#D4A853] hover:bg-[#B88A3E] text-[#1C0F0A] text-[10px] font-black flex items-center justify-center gap-2 h-10"
-                      >
-                        <ClipboardCheck size={14} /> تایید و شروع آماده‌سازی
-                      </Button>
-                    ) : (
-                      <>
-                        <Button 
-                          variant="outline" 
-                          onClick={() => handleUpdateStatus(order, 'در حال آماده‌سازی')}
-                          className="border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 text-[10px] font-black flex items-center gap-2 h-10"
-                        >
-                          <Clock size={14} /> آماده‌سازی
-                        </Button>
-                        <Button 
-                          onClick={() => handleUpdateStatus(order, 'done')}
-                          className="bg-green-600 hover:bg-green-700 text-white text-[10px] font-black flex items-center gap-2 h-10"
-                        >
-                          <CheckCircle2 size={14} /> تحویل
-                        </Button>
-                      </>
-                    )}
+                    <Button 
+                      variant="outline" 
+                      onClick={() => handleUpdateStatus(order, 'preparing')}
+                      disabled={order.status === 'preparing'}
+                      className={cn(
+                        "text-[10px] font-black flex items-center gap-2 h-10 border-[#3D2B24]",
+                        order.status === 'preparing' ? "opacity-50 pointer-events-none" : "hover:bg-yellow-500/10 text-yellow-500"
+                      )}
+                    >
+                      <Clock size={14} /> شروع آماده‌سازی
+                    </Button>
+                    <Button 
+                      onClick={() => handleUpdateStatus(order, 'done')}
+                      className="bg-green-600 hover:bg-green-700 text-white text-[10px] font-black flex items-center gap-2 h-10"
+                    >
+                      <CheckCircle2 size={14} /> تحویل داده شد
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -598,8 +567,8 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-4 mt-4">
-                {completedOrders.map((order, i) => (
-                  <Card key={i} className="bg-[#2A1810]/40 border-[#3D2B24] opacity-60">
+                {completedOrders.map((order) => (
+                  <Card key={order.rowIndex} className="bg-[#2A1810]/40 border-[#3D2B24] opacity-60">
                     <CardHeader className="p-3 flex flex-row items-center justify-between">
                       <span className="text-[10px] font-bold text-[#A89B95]">{order.tableNumber === 'Takeout' ? '📦 بیرون‌بر' : `میز ${order.tableNumber}`}</span>
                       {getStatusBadge(order.status)}
