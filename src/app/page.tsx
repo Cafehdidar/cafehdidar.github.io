@@ -1,8 +1,8 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, MenuItem, OrderItem, Category, Order } from '@/lib/types';
+import React, { useState, useEffect } from 'react';
+import { View, MenuItem, OrderItem, Category } from '@/lib/types';
 import { 
   Coffee, 
   MessageCircle, 
@@ -13,31 +13,24 @@ import {
   Plus, 
   Minus, 
   Trash2, 
-  QrCode, 
   LogIn, 
-  Settings2, 
-  ListOrdered,
-  Pencil,
   Upload,
-  Sparkles,
   ChevronLeft,
-  Loader2,
-  Box,
-  LayoutDashboard,
-  TrendingUp,
+  ListOrdered,
+  Users,
   Clock,
-  UserPlus,
-  Users
+  AlertCircle,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { summarizeCustomerFeedback } from '@/ai/flows/summarize-customer-feedback-flow';
-import { generateMenuItemDescription } from '@/ai/flows/generate-menu-item-description';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { DEFAULT_MENU } from '@/lib/constants';
 
@@ -50,19 +43,15 @@ export default function CafeDidarApp() {
   const [isLogoTapped, setIsLogoTapped] = useState(0);
   const [isSuccess, setIsSuccess] = useState(false);
   
-  // Local Data State
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [feedback, setFeedback] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [gallery, setGallery] = useState<any[]>([]);
 
-  // 1. localStorage Test & Initial Hydration
   useEffect(() => {
-    // Requested Test
     localStorage.setItem('test', 'hello');
     console.log('test:', localStorage.getItem('test'));
 
-    // Hydrate Data
     const storedMenu = localStorage.getItem('cafe_menu');
     setMenu(storedMenu ? JSON.parse(storedMenu) : DEFAULT_MENU);
 
@@ -75,13 +64,11 @@ export default function CafeDidarApp() {
     const storedGallery = localStorage.getItem('cafe_gallery');
     setGallery(storedGallery ? JSON.parse(storedGallery) : []);
 
-    // Capture table number from URL
     const params = new URLSearchParams(window.location.search);
     const table = params.get('table');
     if (table) setTableNumber(table);
   }, []);
 
-  // Update localStorage when local state changes
   useEffect(() => {
     if (menu.length > 0) localStorage.setItem('cafe_menu', JSON.stringify(menu));
   }, [menu]);
@@ -132,7 +119,6 @@ export default function CafeDidarApp() {
     const itemsStr = cart.map(i => `${i.name} (${i.quantity})`).join(', ');
     const table = tableNumber || 'Takeout';
     
-    // Google Apps Script GET Request
     const params = new URLSearchParams({
       tableNumber: table,
       items: itemsStr,
@@ -141,8 +127,6 @@ export default function CafeDidarApp() {
     });
 
     try {
-      // mode: 'no-cors' is used because GAS redirects often cause opaque responses, 
-      // but the data still hits the sheet.
       await fetch(`${GAS_URL}?${params.toString()}`, { mode: 'no-cors' });
       setIsSuccess(true);
       setCart([]);
@@ -452,33 +436,67 @@ function AdminLogin({ onLoginSuccess }: any) {
 function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery, setGallery }: any) {
   const [orders, setOrders] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('orders');
+  const [isCompletedExpanded, setIsCompletedExpanded] = useState(false);
 
-  // Load Orders from GAS every 10 seconds
+  const fetchOrders = async () => {
+    try {
+      const res = await fetch(GAS_URL);
+      const data = await res.json();
+      if (Array.isArray(data)) setOrders(data);
+    } catch (err) {
+      console.error('Failed to load orders from GAS:', err);
+    }
+  };
+
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const res = await fetch(GAS_URL);
-        const data = await res.json();
-        // Assuming GAS returns an array of order objects
-        if (Array.isArray(data)) setOrders(data);
-      } catch (err) {
-        console.error('Failed to load orders from GAS:', err);
-      }
-    };
     fetchOrders();
     const interval = setInterval(fetchOrders, 10000);
     return () => clearInterval(interval);
   }, []);
 
+  const handleUpdateStatus = async (orderId: string, newStatus: string) => {
+    const params = new URLSearchParams({
+      action: 'updateStatus',
+      id: orderId,
+      status: newStatus
+    });
+
+    try {
+      // Optimistic UI update
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+      await fetch(`${GAS_URL}?${params.toString()}`, { mode: 'no-cors' });
+      // Refresh to ensure sync
+      fetchOrders();
+    } catch (err) {
+      console.error('Failed to update status:', err);
+    }
+  };
+
+  const activeOrders = orders.filter(o => o.status !== 'تحویل داده شد');
+  const completedOrders = orders.filter(o => o.status === 'تحویل داده شد');
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'جدید':
+        return <Badge className="bg-red-500/10 text-red-500 border-red-500/20 flex items-center gap-1"><AlertCircle size={12} /> جدید</Badge>;
+      case 'در حال آماده‌سازی':
+        return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 flex items-center gap-1"><Clock size={12} /> در حال آماده‌سازی</Badge>;
+      case 'تحویل داده شد':
+        return <Badge className="bg-green-500/10 text-green-500 border-green-500/20 flex items-center gap-1"><CheckCircle2 size={12} /> تحویل داده شد</Badge>;
+      default:
+        return <Badge className="bg-[#D4A853]/10 text-[#D4A853] border-[#D4A853]/20">{status}</Badge>;
+    }
+  };
+
   return (
     <div className="p-4 bg-[#1C0F0A] min-h-screen pb-20">
       <div className="grid grid-cols-2 gap-3 mb-8">
         <div className="bg-[#2A1810] p-4 rounded-2xl border border-[#3D2B24]">
-          <p className="text-[10px] text-[#A89B95] font-black uppercase">سفارشات جدید</p>
-          <p className="text-2xl font-black text-[#D4A853]">{orders.filter(o => o.status === 'جدید').length}</p>
+          <p className="text-[10px] text-[#A89B95] font-black uppercase">سفارشات جاری</p>
+          <p className="text-2xl font-black text-[#D4A853]">{activeOrders.length}</p>
         </div>
         <div className="bg-[#2A1810] p-4 rounded-2xl border border-[#3D2B24]">
-          <p className="text-[10px] text-[#A89B95] font-black uppercase">کل سفارشات</p>
+          <p className="text-[10px] text-[#A89B95] font-black uppercase">کل امروز</p>
           <p className="text-2xl font-black text-[#F5E6D3]">{orders.length}</p>
         </div>
       </div>
@@ -492,22 +510,68 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
           <TabsTrigger value="gallery"><ImageIcon size={18} /></TabsTrigger>
         </TabsList>
         
-        <TabsContent value="orders" className="space-y-4">
-          {orders.map((order, i) => (
-            <Card key={i} className="bg-[#2A1810] border-[#3D2B24]">
-              <CardHeader className="p-4 flex flex-row items-center justify-between border-b border-[#3D2B24]/50">
-                <div className="flex flex-col">
-                  <span className="text-xs font-black text-[#F5E6D3]">{order.tableNumber === 'Takeout' ? '📦 بیرون‌بر' : `میز ${order.tableNumber}`}</span>
-                  <span className="text-[10px] text-[#A89B95]">{order.timestamp}</span>
-                </div>
-                <Badge className="bg-[#D4A853] text-[#1C0F0A] font-black">{order.status}</Badge>
-              </CardHeader>
-              <CardContent className="p-4">
-                <p className="text-xs text-[#A89B95] mb-2">{order.items}</p>
-                <p className="text-sm font-black text-[#D4A853]">{(Number(order.totalPrice) / 1000).toLocaleString()} تومان</p>
-              </CardContent>
-            </Card>
-          ))}
+        <TabsContent value="orders" className="space-y-6">
+          <div className="space-y-4">
+            {activeOrders.length === 0 && (
+              <p className="text-center text-[#A89B95] py-10 opacity-50">هیچ سفارش جاری وجود ندارد</p>
+            )}
+            {activeOrders.map((order, i) => (
+              <Card key={i} className="bg-[#2A1810] border-[#3D2B24] overflow-hidden">
+                <CardHeader className="p-4 flex flex-row items-center justify-between border-b border-[#3D2B24]/50">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black text-[#F5E6D3]">{order.tableNumber === 'Takeout' ? '📦 بیرون‌بر' : `میز ${order.tableNumber}`}</span>
+                    <span className="text-[10px] text-[#A89B95]">{order.timestamp}</span>
+                  </div>
+                  {getStatusBadge(order.status)}
+                </CardHeader>
+                <CardContent className="p-4 space-y-4">
+                  <p className="text-sm text-[#F5E6D3] leading-relaxed">{order.items}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-lg font-black text-[#D4A853]">{(Number(order.totalPrice) / 1000).toLocaleString()} تومان</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => handleUpdateStatus(order.id, 'در حال آماده‌سازی')}
+                      className="border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 text-[10px] font-black flex items-center gap-2 h-10"
+                    >
+                      <Clock size={14} /> آماده‌سازی
+                    </Button>
+                    <Button 
+                      onClick={() => handleUpdateStatus(order.id, 'تحویل داده شد')}
+                      className="bg-green-600 hover:bg-green-700 text-white text-[10px] font-black flex items-center gap-2 h-10"
+                    >
+                      <CheckCircle2 size={14} /> تحویل
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {completedOrders.length > 0 && (
+            <Collapsible open={isCompletedExpanded} onOpenChange={setIsCompletedExpanded} className="mt-10 border-t border-[#3D2B24] pt-6">
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="w-full flex items-center justify-between text-[#A89B95] font-black hover:text-[#D4A853]">
+                  <span>سفارش‌های تحویل داده شده ({completedOrders.length})</span>
+                  {isCompletedExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-4 mt-4">
+                {completedOrders.map((order, i) => (
+                  <Card key={i} className="bg-[#2A1810]/40 border-[#3D2B24] opacity-60">
+                    <CardHeader className="p-3 flex flex-row items-center justify-between">
+                      <span className="text-[10px] font-bold text-[#A89B95]">{order.tableNumber === 'Takeout' ? '📦 بیرون‌بر' : `میز ${order.tableNumber}`}</span>
+                      {getStatusBadge(order.status)}
+                    </CardHeader>
+                    <CardContent className="p-3 pt-0">
+                      <p className="text-[11px] text-[#A89B95]">{order.items}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </CollapsibleContent>
+            </Collapsible>
+          )}
         </TabsContent>
 
         <TabsContent value="menu">
