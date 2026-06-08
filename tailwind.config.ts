@@ -12,6 +12,7 @@ export default {
       fontFamily: {
         body: ['Vazirmatn', 'sans-serif'],
         headline: ['Vazirmatn', 'sans-serif'],
+        script: ['"Dancing Script"', 'cursive'],
         code: ['monospace'],
       },
       colors: {
@@ -68,8 +69,8 @@ export default {
           '50%': { transform: 'translateY(-10px)' },
         },
         'fade-in': {
-          from: { opacity: '0' },
-          to: { opacity: '1' },
+          from: { opacity: '0', transform: 'translateY(10px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
         },
         'slide-up': {
           from: { transform: 'translateY(100%)' },
@@ -84,8 +85,8 @@ export default {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         'bounce-subtle': 'bounce-subtle 1.2s ease-in-out infinite',
-        'fade-in': 'fade-in 0.4s ease-out',
-        'slide-up': 'slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+        'fade-in': 'fade-in 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+        'slide-up': 'slide-up 0.7s cubic-bezier(0.16, 1, 0.3, 1)',
         'ping-slow': 'ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite',
       },
     },

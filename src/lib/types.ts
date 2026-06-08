@@ -17,10 +17,11 @@ export interface OrderItem extends MenuItem {
 export interface Order {
   id: string;
   tableNumber: string;
-  items: OrderItem[];
-  totalPrice: number;
+  items: string; // items as comma separated string
+  totalPrice: string;
   timestamp: string;
-  status: 'NEW' | 'PREPARING' | 'DELIVERED';
+  status: 'new' | 'preparing' | 'done';
+  rowIndex?: number;
 }
 
 export interface Feedback {
@@ -30,9 +31,4 @@ export interface Feedback {
   timestamp: string;
 }
 
-export interface LoyaltyAccount {
-  phoneNumber: string;
-  points: number;
-}
-
-export type View = 'MENU' | 'CART' | 'FEEDBACK' | 'LOYALTY' | 'GALLERY' | 'ADMIN_LOGIN' | 'ADMIN_DASHBOARD';
+export type View = 'MENU' | 'CART' | 'FEEDBACK' | 'GALLERY' | 'ADMIN_LOGIN' | 'ADMIN_DASHBOARD';

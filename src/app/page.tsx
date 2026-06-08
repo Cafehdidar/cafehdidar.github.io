@@ -6,7 +6,6 @@ import { View, MenuItem, OrderItem, Category } from '@/lib/types';
 import { 
   Coffee, 
   MessageCircle, 
-  Star, 
   Image as ImageIcon, 
   ShoppingCart, 
   CheckCircle2, 
@@ -17,13 +16,11 @@ import {
   Upload,
   ChevronLeft,
   ListOrdered,
-  Users,
   Clock,
   AlertCircle,
   ChevronDown,
   ChevronUp,
-  ClipboardCheck,
-  Package
+  Star
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,18 +44,17 @@ export default function CafeDidarApp() {
   
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [feedback, setFeedback] = useState<any[]>([]);
-  const [members, setMembers] = useState<any[]>([]);
   const [gallery, setGallery] = useState<any[]>([]);
 
   useEffect(() => {
+    localStorage.setItem('test', 'hello');
+    console.log('test:', localStorage.getItem('test'));
+
     const storedMenu = localStorage.getItem('cafe_menu');
     setMenu(storedMenu ? JSON.parse(storedMenu) : DEFAULT_MENU);
 
     const storedFeedback = localStorage.getItem('cafe_feedback');
     setFeedback(storedFeedback ? JSON.parse(storedFeedback) : []);
-
-    const storedMembers = localStorage.getItem('cafe_members');
-    setMembers(storedMembers ? JSON.parse(storedMembers) : []);
 
     const storedGallery = localStorage.getItem('cafe_gallery');
     setGallery(storedGallery ? JSON.parse(storedGallery) : []);
@@ -75,10 +71,6 @@ export default function CafeDidarApp() {
   useEffect(() => {
     localStorage.setItem('cafe_feedback', JSON.stringify(feedback));
   }, [feedback]);
-
-  useEffect(() => {
-    localStorage.setItem('cafe_members', JSON.stringify(members));
-  }, [members]);
 
   useEffect(() => {
     localStorage.setItem('cafe_gallery', JSON.stringify(gallery));
@@ -148,7 +140,7 @@ export default function CafeDidarApp() {
 
   return (
     <div className="flex flex-col min-h-screen max-w-[500px] mx-auto relative overflow-x-hidden bg-[#1C0F0A] font-body">
-      <header className="h-[65px] flex items-center justify-between px-4 bg-black/60 backdrop-blur-xl border-b border-[#D4A853]/30 fixed top-0 w-full max-w-[500px] z-[100]">
+      <header className="h-[75px] flex items-center justify-between px-4 bg-black/70 backdrop-blur-xl border-b border-[#D4A853]/20 fixed top-0 w-full max-w-[500px] z-[100]">
         <div className="flex items-center gap-2">
           {currentView === 'MENU' && (
             <button 
@@ -164,7 +156,7 @@ export default function CafeDidarApp() {
               )}
             </button>
           )}
-          {['CART', 'FEEDBACK', 'LOYALTY', 'GALLERY'].includes(currentView) && (
+          {['CART', 'FEEDBACK', 'GALLERY'].includes(currentView) && (
             <button onClick={() => setCurrentView('MENU')} className="text-[#D4A853] text-sm font-bold flex items-center gap-1">
               <ChevronLeft size={20} /> بازگشت
             </button>
@@ -176,52 +168,53 @@ export default function CafeDidarApp() {
           )}
         </div>
         <div className="flex flex-col items-center">
-          <h1 onClick={handleLogoClick} className="text-[#D4A853] font-black text-2xl cursor-pointer">دیدار</h1>
-          {tableNumber && <span className="text-[9px] bg-[#D4A853]/20 text-[#D4A853] px-2 py-0.5 rounded-full font-bold">میز {tableNumber}</span>}
+          <h1 onClick={handleLogoClick} className="text-[#D4A853] font-black text-2xl cursor-pointer leading-tight">دیدار</h1>
+          <span className="font-script text-[#D4A853] text-sm -mt-1 opacity-80">Cafe Didar</span>
+        </div>
+        <div className="w-[80px]">
+          {tableNumber && <span className="text-[9px] bg-[#D4A853]/20 text-[#D4A853] px-2 py-0.5 rounded-full font-bold block text-center">میز {tableNumber}</span>}
         </div>
       </header>
 
-      <main className="mt-[65px] mb-[75px] flex-1 overflow-y-auto relative scroll-smooth">
-        {currentView === 'MENU' && (
-          <MenuView 
-            menu={menu} 
-            cart={cart}
-            addToCart={addToCart} 
-            updateQuantity={updateQuantity}
-          />
-        )}
-        {currentView === 'CART' && (
-          <CartView 
-            cart={cart} 
-            updateQuantity={updateQuantity} 
-            removeFromCart={removeFromCart} 
-            total={cartTotal} 
-            tableNumber={tableNumber} 
-            onPlaceOrder={handlePlaceOrder} 
-            isSuccess={isSuccess} 
-          />
-        )}
-        {currentView === 'FEEDBACK' && <FeedbackView onFeedbackSubmit={(f: any) => setFeedback(prev => [f, ...prev])} />}
-        {currentView === 'LOYALTY' && <LoyaltyView members={members} onAddMember={(m: any) => setMembers(prev => [m, ...prev])} />}
-        {currentView === 'GALLERY' && <GalleryView gallery={gallery} />}
-        {currentView === 'ADMIN_LOGIN' && <AdminLogin onLoginSuccess={() => setCurrentView('ADMIN_DASHBOARD')} />}
-        {currentView === 'ADMIN_DASHBOARD' && (
-          <AdminDashboard 
-            menu={menu} 
-            setMenu={setMenu} 
-            feedback={feedback} 
-            members={members} 
-            setMembers={setMembers}
-            gallery={gallery}
-            setGallery={setGallery}
-          />
-        )}
+      <main className="mt-[75px] mb-[75px] flex-1 overflow-y-auto relative scroll-smooth">
+        <div className="animate-fade-in">
+          {currentView === 'MENU' && (
+            <MenuView 
+              menu={menu} 
+              cart={cart}
+              addToCart={addToCart} 
+              updateQuantity={updateQuantity}
+            />
+          )}
+          {currentView === 'CART' && (
+            <CartView 
+              cart={cart} 
+              updateQuantity={updateQuantity} 
+              removeFromCart={removeFromCart} 
+              total={cartTotal} 
+              tableNumber={tableNumber} 
+              onPlaceOrder={handlePlaceOrder} 
+              isSuccess={isSuccess} 
+            />
+          )}
+          {currentView === 'FEEDBACK' && <FeedbackView onFeedbackSubmit={(f: any) => setFeedback(prev => [f, ...prev])} />}
+          {currentView === 'GALLERY' && <GalleryView gallery={gallery} />}
+          {currentView === 'ADMIN_LOGIN' && <AdminLogin onLoginSuccess={() => setCurrentView('ADMIN_DASHBOARD')} />}
+          {currentView === 'ADMIN_DASHBOARD' && (
+            <AdminDashboard 
+              menu={menu} 
+              setMenu={setMenu} 
+              feedback={feedback} 
+              gallery={gallery}
+              setGallery={setGallery}
+            />
+          )}
+        </div>
       </main>
 
       <nav className="h-[75px] bg-black/80 backdrop-blur-2xl border-t border-[#D4A853]/10 fixed bottom-0 w-full max-w-[500px] z-50 flex items-center justify-around px-4">
         <NavButton active={currentView === 'MENU'} icon={<Coffee size={22} />} label="منو" onClick={() => setCurrentView('MENU')} />
         <NavButton active={currentView === 'FEEDBACK'} icon={<MessageCircle size={22} />} label="نظرات" onClick={() => setCurrentView('FEEDBACK')} />
-        <NavButton active={currentView === 'LOYALTY'} icon={<Star size={22} />} label="امتیاز" onClick={() => setCurrentView('LOYALTY')} />
         <NavButton active={currentView === 'GALLERY'} icon={<ImageIcon size={22} />} label="گالری" onClick={() => setCurrentView('GALLERY')} />
       </nav>
     </div>
@@ -230,7 +223,7 @@ export default function CafeDidarApp() {
 
 function NavButton({ active, icon, label, onClick }: { active: boolean, icon: React.ReactNode, label: string, onClick: () => void }) {
   return (
-    <button onClick={onClick} className={cn("flex flex-col items-center gap-1.5", active ? 'text-[#D4A853]' : 'text-[#A89B95]')}>
+    <button onClick={onClick} className={cn("flex flex-col items-center gap-1.5 transition-all duration-300", active ? 'text-[#D4A853] scale-110' : 'text-[#A89B95] scale-100')}>
       {icon}
       <span className="text-[10px] font-black uppercase">{label}</span>
     </button>
@@ -253,7 +246,7 @@ function MenuView({ menu, cart, addToCart, updateQuantity }: any) {
         {filteredItems.map((item: any) => {
           const cartItem = cart.find((i: any) => i.id === item.id);
           return (
-            <div key={item.id} className="bg-[#2A1810] border border-[#3D2B24] rounded-2xl p-3 flex items-center gap-3">
+            <div key={item.id} className="bg-[#2A1810] border border-[#3D2B24] rounded-2xl p-3 flex items-center gap-3 transition-all hover:bg-[#3D2B24]/50">
               <div className="w-[85px] h-[85px] bg-[#3D2B24] rounded-2xl flex items-center justify-center text-3xl overflow-hidden shrink-0">
                 {item.image ? <img src={item.image} alt="" className="w-full h-full object-cover" /> : <span>{item.emoji || '🍽️'}</span>}
               </div>
@@ -269,7 +262,7 @@ function MenuView({ menu, cart, addToCart, updateQuantity }: any) {
                       <button onClick={() => updateQuantity(item.id, 1)} className="text-[#D4A853]"><Plus size={14} /></button>
                     </div>
                   ) : (
-                    <button onClick={() => addToCart(item)} className="bg-[#D4A853] text-[#1C0F0A] px-4 py-1.5 rounded-xl text-[10px] font-black">افزودن +</button>
+                    <button onClick={() => addToCart(item)} className="bg-[#D4A853] text-[#1C0F0A] px-4 py-1.5 rounded-xl text-[10px] font-black transition-transform active:scale-90">افزودن +</button>
                   )}
                 </div>
               </div>
@@ -302,7 +295,7 @@ function FeedbackView({ onFeedbackSubmit }: any) {
 
   if (submitted) return (
     <div className="flex flex-col items-center justify-center h-[70vh] p-10 text-center animate-fade-in">
-      <CheckCircle2 size={64} className="text-[#D4A853] mb-4" />
+      <CheckCircle2 size={64} className="text-[#D4A853] mb-4 animate-bounce-subtle" />
       <h2 className="text-2xl font-black text-[#D4A853]">سپاس از نظر شما</h2>
       <Button onClick={() => setSubmitted(false)} variant="ghost" className="mt-8 text-[#D4A853]">ارسال نظر دیگر</Button>
     </div>
@@ -313,48 +306,13 @@ function FeedbackView({ onFeedbackSubmit }: any) {
       <h2 className="text-3xl font-black mb-10 text-[#D4A853]">نظرسنجی</h2>
       <div className="flex justify-center gap-4 mb-10">
         {[1, 2, 3, 4, 5].map(s => (
-          <button key={s} onClick={() => setRating(s)}>
+          <button key={s} onClick={() => setRating(s)} className="transition-transform active:scale-75">
             <Star size={32} fill={s <= rating ? '#D4A853' : 'transparent'} color={s <= rating ? '#D4A853' : '#3D2B24'} />
           </button>
         ))}
       </div>
       <Textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="متن نظر شما..." className="bg-[#2A1810] border-[#3D2B24] min-h-[120px] mb-6" />
-      <Button onClick={handleSubmit} disabled={rating === 0} className="w-full bg-[#D4A853] text-[#1C0F0A] font-black h-14">ثبت بازخورد</Button>
-    </div>
-  );
-}
-
-function LoyaltyView({ members, onAddMember }: any) {
-  const [phone, setPhone] = useState('');
-  const [account, setAccount] = useState<any>(null);
-
-  const handleSearch = () => {
-    const found = members.find((m: any) => m.phoneNumber === phone);
-    if (found) setAccount(found);
-    else alert('شماره یافت نشد');
-  };
-
-  return (
-    <div className="p-6 animate-fade-in">
-      <h2 className="text-3xl font-black mb-10 text-[#D4A853] text-center">باشگاه مشتریان</h2>
-      {!account ? (
-        <div className="bg-[#2A1810] p-8 rounded-3xl border border-[#D4A853]/20 space-y-6">
-          <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="۰۹********* " className="bg-[#1C0F0A] border-[#3D2B24] text-center h-14 text-xl font-black" />
-          <Button onClick={handleSearch} className="w-full bg-[#D4A853] text-[#1C0F0A] font-black h-14">بررسی امتیازات</Button>
-        </div>
-      ) : (
-        <div className="space-y-6 animate-slide-up">
-          <div className="h-[200px] bg-gradient-to-br from-[#D4A853] to-[#B88A3E] rounded-[30px] p-8 text-[#1C0F0A] flex flex-col justify-between shadow-xl">
-            <h3 className="font-black text-xl">کارت وفاداری دیدار</h3>
-            <div>
-              <p className="text-[10px] font-bold opacity-70 uppercase tracking-widest">موجودی امتیاز:</p>
-              <p className="text-6xl font-black">{account.points}</p>
-            </div>
-            <p className="text-right font-black tracking-widest">{account.phoneNumber}</p>
-          </div>
-          <Button onClick={() => setAccount(null)} variant="ghost" className="w-full text-[#A89B95]">تغییر شماره</Button>
-        </div>
-      )}
+      <Button onClick={handleSubmit} disabled={rating === 0} className="w-full bg-[#D4A853] text-[#1C0F0A] font-black h-14 shadow-lg shadow-[#D4A853]/20">ثبت بازخورد</Button>
     </div>
   );
 }
@@ -365,8 +323,8 @@ function GalleryView({ gallery }: any) {
       <h2 className="text-3xl font-black text-[#D4A853] mb-8 text-center">گالری دیدار</h2>
       <div className="grid grid-cols-2 gap-3">
         {gallery.map((img: any) => (
-          <div key={img.id} className="aspect-square bg-[#2A1810] rounded-2xl overflow-hidden border border-[#3D2B24]">
-            <img src={img.url} className="w-full h-full object-cover" alt="" />
+          <div key={img.id} className="aspect-square bg-[#2A1810] rounded-2xl overflow-hidden border border-[#3D2B24] group relative">
+            <img src={img.url} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt="" />
           </div>
         ))}
       </div>
@@ -377,8 +335,9 @@ function GalleryView({ gallery }: any) {
 function CartView({ cart, updateQuantity, removeFromCart, total, tableNumber, onPlaceOrder, isSuccess }: any) {
   if (isSuccess) return (
     <div className="flex flex-col items-center justify-center h-[75vh] p-6 animate-fade-in">
-      <div className="w-32 h-32 bg-[#D4A853] rounded-full flex items-center justify-center mb-8 shadow-2xl">
-        <CheckCircle2 size={80} className="text-[#1C0F0A]" />
+      <div className="w-32 h-32 bg-[#D4A853] rounded-full flex items-center justify-center mb-8 shadow-2xl relative overflow-hidden">
+        <div className="absolute inset-0 bg-white/20 animate-ping-slow rounded-full"></div>
+        <CheckCircle2 size={80} className="text-[#1C0F0A] relative z-10" />
       </div>
       <h2 className="text-3xl font-black text-[#D4A853]">سفارش ثبت شد</h2>
       <p className="text-[#A89B95] mt-2 text-center">سفارش شما {tableNumber ? `میز ${tableNumber}` : 'بیرون‌بر'} دریافت شد.</p>
@@ -412,7 +371,7 @@ function CartView({ cart, updateQuantity, removeFromCart, total, tableNumber, on
               <span className="text-[#A89B95] font-bold">مجموع کل:</span>
               <span className="text-3xl font-black text-[#D4A853]">{(total / 1000).toLocaleString()} <span className="text-xs">تومان</span></span>
             </div>
-            <Button onClick={onPlaceOrder} className="w-full h-16 bg-[#D4A853] text-[#1C0F0A] font-black rounded-2xl text-lg">ثبت و تایید نهایی</Button>
+            <Button onClick={onPlaceOrder} className="w-full h-16 bg-[#D4A853] text-[#1C0F0A] font-black rounded-2xl text-lg shadow-xl shadow-[#D4A853]/20 transition-transform active:scale-95">ثبت و تایید نهایی</Button>
           </div>
         </div>
       )}
@@ -432,7 +391,7 @@ function AdminLogin({ onLoginSuccess }: any) {
   );
 }
 
-function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery, setGallery }: any) {
+function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
   const [rawOrders, setRawOrders] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('orders');
   const [isCompletedExpanded, setIsCompletedExpanded] = useState(false);
@@ -456,12 +415,11 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
   const orders = useMemo(() => {
     return rawOrders.map((o, index) => ({
       ...o,
-      rowIndex: index + 2, // Assuming header is row 1
+      rowIndex: index + 2,
     }));
   }, [rawOrders]);
 
   const handleUpdateStatus = async (order: any, newStatus: string) => {
-    // Optimistic update
     setRawOrders(prev => prev.map((o, idx) => (idx + 2 === order.rowIndex ? { ...o, status: newStatus } : o)));
 
     const params = new URLSearchParams({
@@ -472,7 +430,6 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
 
     try {
       await fetch(`${GAS_URL}?${params.toString()}`, { mode: 'no-cors' });
-      // Reload from server to confirm
       setTimeout(fetchOrders, 2000);
     } catch (err) {
       console.error('Failed to update status:', err);
@@ -494,7 +451,7 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
   };
 
   return (
-    <div className="p-4 bg-[#1C0F0A] min-h-screen pb-20">
+    <div className="p-4 bg-[#1C0F0A] min-h-screen pb-20 animate-fade-in">
       <div className="grid grid-cols-2 gap-3 mb-8">
         <div className="bg-[#2A1810] p-4 rounded-2xl border border-[#3D2B24]">
           <p className="text-[10px] text-[#A89B95] font-black uppercase">سفارشات جاری</p>
@@ -507,10 +464,9 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-[#2A1810] grid grid-cols-5 h-14 mb-8">
+        <TabsList className="bg-[#2A1810] grid grid-cols-4 h-14 mb-8">
           <TabsTrigger value="orders"><ListOrdered size={18} /></TabsTrigger>
           <TabsTrigger value="menu"><Coffee size={18} /></TabsTrigger>
-          <TabsTrigger value="members"><Users size={18} /></TabsTrigger>
           <TabsTrigger value="feedback"><MessageCircle size={18} /></TabsTrigger>
           <TabsTrigger value="gallery"><ImageIcon size={18} /></TabsTrigger>
         </TabsList>
@@ -587,10 +543,6 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
           <AdminMenuManager menu={menu} setMenu={setMenu} />
         </TabsContent>
         
-        <TabsContent value="members">
-           <AdminMemberManager members={members} setMembers={setMembers} />
-        </TabsContent>
-
         <TabsContent value="feedback">
            <div className="space-y-3">
              {feedback.map((f: any) => (
@@ -675,32 +627,6 @@ function AdminMenuManager({ menu, setMenu }: any) {
               <span className="text-xs font-bold text-[#F5E6D3]">{m.name}</span>
             </div>
             <button onClick={() => setMenu(menu.filter((x: any) => x.id !== m.id))} className="text-red-500/30"><Trash2 size={16} /></button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function AdminMemberManager({ members, setMembers }: any) {
-  const [form, setForm] = useState({ phoneNumber: '', points: 0 });
-  const handleAdd = () => {
-    if (!form.phoneNumber) return;
-    setMembers([{ ...form, id: Math.random() }, ...members]);
-    setForm({ phoneNumber: '', points: 0 });
-  };
-  return (
-    <div className="space-y-4">
-      <div className="bg-[#2A1810] p-4 rounded-3xl border border-[#D4A853]/20 space-y-3">
-        <Input placeholder="شماره تماس" value={form.phoneNumber} onChange={e => setForm({ ...form, phoneNumber: e.target.value })} className="bg-[#1C0F0A] border-[#3D2B24]" />
-        <Input type="number" placeholder="امتیاز" value={form.points} onChange={e => setForm({ ...form, points: Number(e.target.value) })} className="bg-[#1C0F0A] border-[#3D2B24]" />
-        <Button onClick={handleAdd} className="w-full bg-[#D4A853] text-[#1C0F0A] font-black">افزودن عضو</Button>
-      </div>
-      <div className="space-y-2">
-        {members.map((m: any, i: number) => (
-          <div key={i} className="bg-[#2A1810] p-4 rounded-2xl flex justify-between border border-[#3D2B24]">
-            <span className="text-xs font-black">{m.phoneNumber}</span>
-            <Badge className="bg-[#D4A853] text-[#1C0F0A]">{m.points} امتیاز</Badge>
           </div>
         ))}
       </div>
