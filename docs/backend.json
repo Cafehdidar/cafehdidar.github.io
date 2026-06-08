@@ -1,0 +1,71 @@
+
+{
+  "entities": {
+    "MenuItem": {
+      "title": "MenuItem",
+      "description": "A menu item offered by the cafe.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "category": { "type": "string", "enum": ["HOT", "COLD", "DESSERT"] },
+        "emoji": { "type": "string" },
+        "image": { "type": "string", "description": "Base64 encoded image data" }
+      },
+      "required": ["name", "price", "category"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "A customer order.",
+      "type": "object",
+      "properties": {
+        "tableNumber": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "price": { "type": "number" },
+              "quantity": { "type": "number" }
+            }
+          }
+        },
+        "totalPrice": { "type": "number" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["NEW", "PREPARING", "DELIVERED"] }
+      },
+      "required": ["tableNumber", "items", "totalPrice", "status"]
+    },
+    "Feedback": {
+      "title": "Feedback",
+      "description": "Customer feedback and ratings.",
+      "type": "object",
+      "properties": {
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["rating", "timestamp"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com"]
+  },
+  "firestore": {
+    "/menu/{itemId}": {
+      "schema": "MenuItem",
+      "description": "Collection of cafe menu items."
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Collection of customer orders."
+    },
+    "/feedback/{feedbackId}": {
+      "schema": "Feedback",
+      "description": "Collection of customer feedback entries."
+    }
+  }
+}

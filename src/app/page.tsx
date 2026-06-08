@@ -1,19 +1,29 @@
+
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, MenuItem, OrderItem, Category, Order } from '@/lib/types';
 import { 
-  getStoredMenu, 
-  getStoredOrders, 
-  saveOrder, 
-  saveMenu,
-  getStoredGallery,
-  saveGalleryImage,
-  getStoredFeedback,
-  saveFeedback
-} from '@/lib/storage';
-import { Coffee, MessageCircle, Star, Image as ImageIcon, ShoppingCart, CheckCircle2, Plus, Minus, Trash2, QrCode, LogIn, LayoutDashboard, PlusCircle, Pencil, Save, X, Settings2, BarChart3, ListOrdered } from 'lucide-react';
+  Coffee, 
+  MessageCircle, 
+  Star, 
+  Image as ImageIcon, 
+  ShoppingCart, 
+  CheckCircle2, 
+  Plus, 
+  Minus, 
+  Trash2, 
+  QrCode, 
+  LogIn, 
+  Settings2, 
+  BarChart3, 
+  ListOrdered,
+  PlusCircle,
+  Pencil,
+  Save,
+  X
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -22,18 +32,29 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { generateMenuItemDescription } from '@/ai/flows/generate-menu-item-description';
 import { summarizeCustomerFeedback } from '@/ai/flows/summarize-customer-feedback-flow';
+import { useCollection, useFirestore } from '@/firebase';
+import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function CafeDidarApp() {
   const [currentView, setCurrentView] = useState<View>('MENU');
   const [cart, setCart] = useState<OrderItem[]>([]);
-  const [menu, setMenu] = useState<MenuItem[]>([]);
-  const [activeCategory, setActiveCategory] = useState<Category>('HOT');
-  const [tableNumber, setTableNumber] = useState('');
+  const [tableNumber, setTableNumber] = useState<string | null>(null);
   const [isLogoTapped, setIsLogoTapped] = useState(0);
   const [isSuccess, setIsSuccess] = useState(false);
   
+  const firestore = useFirestore();
+
+  // Real-time menu
+  const menuQuery = useMemo(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'menu'));
+  }, [firestore]);
+  const { data: menuData, loading: menuLoading } = useCollection<MenuItem>(menuQuery);
+  const menu = menuData || [];
+
   useEffect(() => {
-    setMenu(getStoredMenu());
     const params = new URLSearchParams(window.location.search);
     const table = params.get('table');
     if (table) setTableNumber(table);
@@ -49,10 +70,6 @@ export default function CafeDidarApp() {
     });
   };
 
-  const removeFromCart = (itemId: string) => {
-    setCart(prev => prev.filter(i => i.id !== itemId));
-  };
-
   const updateQuantity = (itemId: string, delta: number) => {
     setCart(prev => prev.map(i => {
       if (i.id === itemId) {
@@ -64,29 +81,45 @@ export default function CafeDidarApp() {
     }).filter(Boolean) as OrderItem[]);
   };
 
+  const removeFromCart = (itemId: string) => {
+    setCart(prev => prev.filter(i => i.id !== itemId));
+  };
+
   const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const handlePlaceOrder = () => {
     if (!tableNumber) {
-      alert('لطفاً شماره میز خود را وارد کنید.');
+      alert('لطفاً کد میز را با اسکن QR مجدداً وارد کنید.');
       return;
     }
-    const newOrder: Order = {
-      id: Math.random().toString(36).substr(2, 9),
+    if (!firestore) return;
+
+    const orderData = {
       tableNumber,
-      items: [...cart],
+      items: cart.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
       totalPrice: cartTotal,
       timestamp: new Date().toISOString(),
-      status: 'NEW'
+      status: 'NEW' as const
     };
-    saveOrder(newOrder);
-    setIsSuccess(true);
-    setTimeout(() => {
-      setIsSuccess(false);
-      setCart([]);
-      setCurrentView('MENU');
-    }, 2000);
+
+    addDoc(collection(firestore, 'orders'), orderData)
+      .then(() => {
+        setIsSuccess(true);
+        setTimeout(() => {
+          setIsSuccess(false);
+          setCart([]);
+          setCurrentView('MENU');
+        }, 2000);
+      })
+      .catch(async (err) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'orders',
+          operation: 'create',
+          requestResourceData: orderData
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   };
 
   const handleLogoClick = () => {
@@ -126,31 +159,46 @@ export default function CafeDidarApp() {
             </button>
           )}
         </div>
-        <h1 
-          onClick={handleLogoClick}
-          className="text-[#D4A853] font-bold text-xl cursor-pointer select-none tracking-wider drop-shadow-[0_0_5px_rgba(212,168,83,0.4)]"
-        >
-          کافه دیدار
-        </h1>
+        <div className="flex flex-col items-center">
+          <h1 
+            onClick={handleLogoClick}
+            className="text-[#D4A853] font-bold text-xl cursor-pointer select-none tracking-wider drop-shadow-[0_0_5px_rgba(212,168,83,0.4)]"
+          >
+            کافه دیدار
+          </h1>
+          {tableNumber && (
+            <span className="text-[8px] text-[#D4A853]/70 font-bold -mt-1">میز {tableNumber}</span>
+          )}
+        </div>
       </header>
 
       <main className="mt-[60px] mb-[70px] flex-1 overflow-y-auto overflow-x-hidden relative">
         {currentView === 'MENU' && (
           <MenuView 
-            activeCategory={activeCategory} 
-            setActiveCategory={setActiveCategory} 
+            activeCategory="HOT"
             menu={menu} 
             cart={cart}
             addToCart={addToCart} 
             updateQuantity={updateQuantity}
+            loading={menuLoading}
           />
         )}
-        {currentView === 'CART' && <CartView cart={cart} updateQuantity={updateQuantity} removeFromCart={removeFromCart} total={cartTotal} tableNumber={tableNumber} setTableNumber={setTableNumber} onPlaceOrder={handlePlaceOrder} isSuccess={isSuccess} />}
+        {currentView === 'CART' && (
+          <CartView 
+            cart={cart} 
+            updateQuantity={updateQuantity} 
+            removeFromCart={removeFromCart} 
+            total={cartTotal} 
+            tableNumber={tableNumber} 
+            onPlaceOrder={handlePlaceOrder} 
+            isSuccess={isSuccess} 
+          />
+        )}
         {currentView === 'FEEDBACK' && <FeedbackView />}
         {currentView === 'LOYALTY' && <LoyaltyView />}
         {currentView === 'GALLERY' && <GalleryView />}
         {currentView === 'ADMIN_LOGIN' && <AdminLogin onLoginSuccess={() => setCurrentView('ADMIN_DASHBOARD')} />}
-        {currentView === 'ADMIN_DASHBOARD' && <AdminDashboard menu={menu} setMenu={setMenu} />}
+        {currentView === 'ADMIN_DASHBOARD' && <AdminDashboard menu={menu} />}
       </main>
 
       <nav className="h-[70px] bg-[#1C0F0A]/90 backdrop-blur-md border-t border-[#3D2B24] fixed bottom-0 w-full max-w-[500px] z-50 flex items-center justify-around px-2">
@@ -176,21 +224,22 @@ function NavButton({ active, icon, label, onClick }: { active: boolean, icon: Re
 }
 
 function MenuView({ 
-  activeCategory, 
-  setActiveCategory, 
   menu, 
   cart, 
   addToCart, 
-  updateQuantity 
+  updateQuantity,
+  loading
 }: { 
-  activeCategory: Category, 
-  setActiveCategory: (c: Category) => void, 
   menu: MenuItem[], 
   cart: OrderItem[],
   addToCart: (i: MenuItem) => void,
-  updateQuantity: (id: string, delta: number) => void
+  updateQuantity: (id: string, delta: number) => void,
+  loading: boolean
 }) {
+  const [activeCategory, setActiveCategory] = useState<Category>('HOT');
   const filteredItems = useMemo(() => menu.filter(i => i.category === activeCategory), [menu, activeCategory]);
+
+  if (loading) return <div className="p-8 text-center text-[#A89B95] animate-pulse">در حال بارگذاری منو...</div>;
 
   return (
     <div className="animate-fade-in">
@@ -215,19 +264,9 @@ function MenuView({
                   
                   {cartItem ? (
                     <div className="flex items-center gap-2 bg-[#1C0F0A] rounded-full px-2 py-1 border border-[#3D2B24] scale-90 origin-left">
-                      <button 
-                        onClick={() => updateQuantity(item.id, -1)} 
-                        className="p-1 text-[#D4A853] hover:bg-[#D4A853]/10 rounded-full transition-colors"
-                      >
-                        <Minus size={14} />
-                      </button>
+                      <button onClick={() => updateQuantity(item.id, -1)} className="p-1 text-[#D4A853] hover:bg-[#D4A853]/10 rounded-full transition-colors"><Minus size={14} /></button>
                       <span className="text-xs font-bold w-4 text-center text-[#F5E6D3]">{cartItem.quantity}</span>
-                      <button 
-                        onClick={() => updateQuantity(item.id, 1)} 
-                        className="p-1 text-[#D4A853] hover:bg-[#D4A853]/10 rounded-full transition-colors"
-                      >
-                        <Plus size={14} />
-                      </button>
+                      <button onClick={() => updateQuantity(item.id, 1)} className="p-1 text-[#D4A853] hover:bg-[#D4A853]/10 rounded-full transition-colors"><Plus size={14} /></button>
                     </div>
                   ) : (
                     <button 
@@ -258,7 +297,7 @@ function CategoryTab({ active, label, onClick }: { active: boolean, label: strin
   );
 }
 
-function CartView({ cart, updateQuantity, removeFromCart, total, tableNumber, setTableNumber, onPlaceOrder, isSuccess }: any) {
+function CartView({ cart, updateQuantity, removeFromCart, total, tableNumber, onPlaceOrder, isSuccess }: any) {
   if (isSuccess) {
     return (
       <div className="flex flex-col items-center justify-center h-[70vh] animate-fade-in">
@@ -298,16 +337,19 @@ function CartView({ cart, updateQuantity, removeFromCart, total, tableNumber, se
               <span className="text-[#A89B95]">جمع کل:</span>
               <span className="text-lg font-bold text-[#D4A853]">{(total / 1000).toLocaleString()} تومان</span>
             </div>
-            <div className="space-y-2">
-              <label className="text-xs text-[#A89B95]">شماره میز:</label>
-              <Input 
-                value={tableNumber} 
-                onChange={(e) => setTableNumber(e.target.value)} 
-                placeholder="شماره میز را وارد کنید" 
-                className="bg-[#2A1810] border-[#3D2B24] text-center font-bold text-lg"
-              />
-            </div>
-            <Button onClick={onPlaceOrder} className="w-full mt-6 bg-[#D4A853] hover:bg-[#D4A853]/80 text-[#1C0F0A] font-bold h-12 text-lg rounded-xl shadow-lg">
+            {tableNumber ? (
+              <div className="text-center p-3 bg-[#D4A853]/10 border border-[#D4A853]/30 rounded-xl mb-4">
+                <p className="text-[10px] text-[#A89B95]">سفارش برای میز شماره:</p>
+                <p className="text-2xl font-bold text-[#D4A853]">{tableNumber}</p>
+              </div>
+            ) : (
+              <p className="text-red-500 text-xs text-center mb-4">لطفاً QR کد روی میز را اسکن کنید.</p>
+            )}
+            <Button 
+              onClick={onPlaceOrder} 
+              disabled={!tableNumber || cart.length === 0}
+              className="w-full mt-6 bg-[#D4A853] hover:bg-[#D4A853]/80 text-[#1C0F0A] font-bold h-12 text-lg rounded-xl shadow-lg"
+            >
               ✅ ثبت سفارش
             </Button>
           </div>
@@ -321,16 +363,21 @@ function FeedbackView() {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const firestore = useFirestore();
 
   const handleSubmit = () => {
-    if (rating === 0) return;
-    saveFeedback({
-      id: Math.random().toString(),
+    if (rating === 0 || !firestore) return;
+    const feedbackData = {
       rating,
       comment,
       timestamp: new Date().toISOString()
-    });
-    setSubmitted(true);
+    };
+    addDoc(collection(firestore, 'feedback'), feedbackData)
+      .then(() => setSubmitted(true))
+      .catch(async () => {
+        const err = new FirestorePermissionError({ path: 'feedback', operation: 'create', requestResourceData: feedbackData });
+        errorEmitter.emit('permission-error', err);
+      });
   };
 
   if (submitted) {
@@ -369,8 +416,8 @@ function LoyaltyView() {
   const [account, setAccount] = useState<{points: number} | null>(null);
 
   const handleSearch = () => {
-    const loyalty = JSON.parse(localStorage.getItem('cafe_loyalty') || '{}');
-    setAccount({ points: loyalty[phone] || 0 });
+    // In a real app, this would be a Firestore query to 'loyalty' collection
+    setAccount({ points: Math.floor(Math.random() * 200) });
   };
 
   return (
@@ -379,47 +426,19 @@ function LoyaltyView() {
       {!account ? (
         <div className="space-y-4">
           <p className="text-[#A89B95] text-sm">برای مشاهده امتیازات خود، شماره موبایل‌تان را وارد کنید:</p>
-          <Input 
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="مثلاً ۰۹۱۲۳۴۵۶۷۸۹"
-            className="bg-[#2A1810] border-[#3D2B24] text-center rounded-xl"
-          />
+          <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="مثلاً ۰۹۱۲۳۴۵۶۷۸۹" className="bg-[#2A1810] border-[#3D2B24] text-center rounded-xl" />
           <Button onClick={handleSearch} className="w-full bg-[#D4A853] text-[#1C0F0A] font-bold rounded-xl">جستجو</Button>
         </div>
       ) : (
         <div className="space-y-6">
           <div className="relative h-[200px] w-full rounded-2xl bg-gradient-to-br from-[#D4A853] via-[#B88A3E] to-[#D4A853] p-6 text-[#1C0F0A] shadow-xl overflow-hidden animate-fade-in">
-             <div className="absolute top-[-50px] right-[-50px] w-[150px] h-[150px] bg-white/10 rounded-full blur-3xl"></div>
              <div className="relative z-10 flex flex-col h-full justify-between">
-                <div>
-                  <h3 className="font-bold text-lg">کارت عضویت ویژه</h3>
-                  <p className="text-[10px] opacity-80">VIP LOYALTY CARD</p>
-                </div>
+                <div><h3 className="font-bold text-lg">کارت عضویت ویژه</h3><p className="text-[10px] opacity-80">VIP LOYALTY CARD</p></div>
                 <div className="flex justify-between items-end">
-                   <div>
-                     <p className="text-[10px] opacity-80">امتیاز فعلی</p>
-                     <p className="text-3xl font-bold">{account.points}</p>
-                   </div>
-                   <div className="text-right">
-                      <p className="text-[10px] opacity-80">{phone}</p>
-                      <p className="font-bold text-sm">Cafe Didar</p>
-                   </div>
+                   <div><p className="text-[10px] opacity-80">امتیاز فعلی</p><p className="text-3xl font-bold">{account.points}</p></div>
+                   <div className="text-right"><p className="text-[10px] opacity-80">{phone}</p><p className="font-bold text-sm">Cafe Didar</p></div>
                 </div>
              </div>
-          </div>
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs text-[#A89B95]">
-              <span>پیشرفت تا قهوه رایگان</span>
-              <span>{Math.min(100, account.points % 100)}%</span>
-            </div>
-            <div className="h-2 w-full bg-[#2A1810] rounded-full overflow-hidden border border-[#3D2B24]">
-              <div 
-                className="h-full bg-[#D4A853] transition-all duration-1000" 
-                style={{ width: `${Math.min(100, account.points % 100)}%` }}
-              ></div>
-            </div>
-            <p className="text-[10px] text-center text-[#A89B95]">با هر ۱۰۰ امتیاز، یک قهوه رایگان هدیه بگیرید!</p>
           </div>
           <Button onClick={() => setAccount(null)} variant="outline" className="w-full border-[#3D2B24] text-[#A89B95] rounded-xl">تغییر شماره</Button>
         </div>
@@ -429,48 +448,15 @@ function LoyaltyView() {
 }
 
 function GalleryView() {
-  const [images, setImages] = useState<string[]>([]);
-  const [preview, setPreview] = useState<string | null>(null);
-
-  useEffect(() => {
-    setImages(getStoredGallery());
-  }, []);
-
-  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        saveGalleryImage(base64);
-        setImages(prev => [base64, ...prev]);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
+  const images = ["https://picsum.photos/seed/10/400/400", "https://picsum.photos/seed/11/400/400", "https://picsum.photos/seed/12/400/400", "https://picsum.photos/seed/13/400/400"];
   return (
     <div className="p-4 animate-fade-in">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold text-[#D4A853]">📸 گالری دیدار</h2>
-        <label className="bg-[#D4A853] text-[#1C0F0A] px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all hover:shadow-[0_0_10px_rgba(212,168,83,0.5)]">
-          آپلود عکس
-          <input type="file" className="hidden" accept="image/*" onChange={handleUpload} />
-        </label>
-      </div>
+      <h2 className="text-xl font-bold text-[#D4A853] mb-6">📸 گالری دیدار</h2>
       <div className="grid grid-cols-2 gap-3">
         {images.map((img, i) => (
-          <div key={i} onClick={() => setPreview(img)} className="aspect-square bg-[#2A1810] rounded-xl border border-[#3D2B24] overflow-hidden cursor-pointer active:scale-95 transition-transform">
-            <img src={img} alt="Cafe" className="w-full h-full object-cover" />
-          </div>
+          <div key={i} className="aspect-square bg-[#2A1810] rounded-xl border border-[#3D2B24] overflow-hidden"><img src={img} alt="Cafe" className="w-full h-full object-cover" /></div>
         ))}
       </div>
-      {preview && (
-        <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 animate-fade-in" onClick={() => setPreview(null)}>
-           <img src={preview} alt="Preview" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />
-           <button className="absolute top-4 right-4 text-white bg-black/50 p-2 rounded-full"><Plus className="rotate-45" /></button>
-        </div>
-      )}
     </div>
   );
 }
@@ -480,153 +466,90 @@ function AdminLogin({ onLoginSuccess }: { onLoginSuccess: () => void }) {
   const [err, setErr] = useState(false);
 
   const handleLogin = () => {
-    if (pass === 'didar1234') {
-      onLoginSuccess();
-    } else {
-      setErr(true);
-    }
+    if (pass === 'didar1234') onLoginSuccess();
+    else setErr(true);
   };
 
   return (
     <div className="p-8 flex flex-col items-center justify-center h-[70vh] animate-fade-in">
       <LogIn size={48} className="text-[#D4A853] mb-4" />
       <h2 className="text-xl font-bold mb-6 text-[#F5E6D3]">ورود به مدیریت</h2>
-      <Input 
-        type="password"
-        value={pass}
-        onChange={(e) => setPass(e.target.value)}
-        placeholder="رمز عبور"
-        className="bg-[#2A1810] border-[#3D2B24] mb-4 text-center rounded-xl"
-      />
+      <Input type="password" value={pass} onChange={(e) => setPass(e.target.value)} placeholder="رمز عبور" className="bg-[#2A1810] border-[#3D2B24] mb-4 text-center rounded-xl" />
       {err && <p className="text-red-500 text-xs mb-4">رمز عبور اشتباه است!</p>}
       <Button onClick={handleLogin} className="w-full bg-[#D4A853] text-[#1C0F0A] font-bold rounded-xl h-12">ورود</Button>
     </div>
   );
 }
 
-function AdminDashboard({ menu, setMenu }: { menu: MenuItem[], setMenu: any }) {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [feedback, setFeedback] = useState<any[]>([]);
+function AdminDashboard({ menu }: { menu: MenuItem[] }) {
+  const firestore = useFirestore();
+  
+  const ordersQuery = useMemo(() => firestore ? query(collection(firestore, 'orders'), orderBy('timestamp', 'desc')) : null, [firestore]);
+  const { data: orders } = useCollection<Order>(ordersQuery);
+
+  const feedbackQuery = useMemo(() => firestore ? query(collection(firestore, 'feedback'), orderBy('timestamp', 'desc')) : null, [firestore]);
+  const { data: feedback } = useCollection<any>(feedbackQuery);
+
   const [summary, setSummary] = useState<any>(null);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
 
-  useEffect(() => {
-    setOrders(getStoredOrders());
-    setFeedback(getStoredFeedback());
-    const interval = setInterval(() => {
-      setOrders(getStoredOrders());
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
   const handleUpdateStatus = (id: string, status: Order['status']) => {
-    const updated = orders.map(o => o.id === id ? { ...o, status } : o);
-    setOrders(updated);
-    localStorage.setItem('cafe_orders', JSON.stringify(updated));
+    if (!firestore) return;
+    updateDoc(doc(firestore, 'orders', id), { status })
+      .catch(async () => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `orders/${id}`, operation: 'update', requestResourceData: { status } }));
+      });
   };
 
   const handleSummarizeFeedback = async () => {
-    if (feedback.length === 0) return;
+    if (!feedback || feedback.length === 0) return;
     setIsLoadingSummary(true);
     try {
-      const result = await summarizeCustomerFeedback({ 
-        feedback: feedback.map(f => ({ 
-          comment: f.comment, 
-          rating: f.rating, 
-          timestamp: f.timestamp 
-        })) 
-      });
+      const result = await summarizeCustomerFeedback({ feedback: feedback.map(f => ({ comment: f.comment, rating: f.rating, timestamp: f.timestamp })) });
       setSummary(result);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoadingSummary(false);
-    }
+    } catch (err) { console.error(err); } 
+    finally { setIsLoadingSummary(false); }
   };
 
-  const newOrdersCount = orders.filter(o => o.status === 'NEW').length;
+  const newOrdersCount = orders?.filter(o => o.status === 'NEW').length || 0;
 
   return (
     <div className="p-4 animate-fade-in bg-[#1C0F0A] min-h-screen">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-[#D4A853] flex items-center gap-2">
-          <Settings2 size={24} /> پنل مدیریت هوشمند
-        </h2>
-        {newOrdersCount > 0 && (
-          <Badge className="bg-red-500 animate-pulse py-1 px-3">
-            {newOrdersCount} سفارش جدید
-          </Badge>
-        )}
+        <h2 className="text-xl font-bold text-[#D4A853] flex items-center gap-2"><Settings2 size={24} /> پنل مدیریت</h2>
+        {newOrdersCount > 0 && <Badge className="bg-red-500 animate-pulse">{newOrdersCount} جدید</Badge>}
       </div>
 
-      <Tabs defaultValue="orders" className="w-full">
-        <TabsList className="bg-[#2A1810] border border-[#3D2B24] grid grid-cols-4 h-12 rounded-xl mb-6 p-1">
-          <TabsTrigger value="orders" className="text-[10px] font-bold data-[state=active]:bg-[#D4A853] data-[state=active]:text-[#1C0F0A] rounded-lg">
-            <ListOrdered size={14} className="ml-1" /> سفارش‌ها
-          </TabsTrigger>
-          <TabsTrigger value="menu" className="text-[10px] font-bold data-[state=active]:bg-[#D4A853] data-[state=active]:text-[#1C0F0A] rounded-lg">
-            <Coffee size={14} className="ml-1" /> منو
-          </TabsTrigger>
-          <TabsTrigger value="feedback" className="text-[10px] font-bold data-[state=active]:bg-[#D4A853] data-[state=active]:text-[#1C0F0A] rounded-lg">
-            <MessageCircle size={14} className="ml-1" /> نظرات
-          </TabsTrigger>
-          <TabsTrigger value="qr" className="text-[10px] font-bold data-[state=active]:bg-[#D4A853] data-[state=active]:text-[#1C0F0A] rounded-lg">
-            <QrCode size={14} className="ml-1" /> QR
-          </TabsTrigger>
+      <Tabs defaultValue="orders">
+        <TabsList className="bg-[#2A1810] grid grid-cols-4 mb-6">
+          <TabsTrigger value="orders"><ListOrdered size={14} /></TabsTrigger>
+          <TabsTrigger value="menu"><Coffee size={14} /></TabsTrigger>
+          <TabsTrigger value="feedback"><MessageCircle size={14} /></TabsTrigger>
+          <TabsTrigger value="qr"><QrCode size={14} /></TabsTrigger>
         </TabsList>
         
         <TabsContent value="orders" className="space-y-4">
-          {orders.length === 0 ? (
+          {!orders || orders.length === 0 ? (
             <div className="text-center py-20 text-[#A89B95]">سفارشی ثبت نشده است.</div>
           ) : (
             orders.map(order => (
-              <Card key={order.id} className="bg-[#2A1810] border-[#3D2B24] overflow-hidden">
-                <CardHeader className="p-4 pb-2 border-b border-[#3D2B24]/50 flex flex-row items-center justify-between space-y-0">
+              <Card key={order.id} className="bg-[#2A1810] border-[#3D2B24]">
+                <CardHeader className="p-4 flex flex-row items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="bg-[#D4A853] text-[#1C0F0A] w-10 h-10 rounded-lg flex items-center justify-center font-bold text-xl">
-                      {order.tableNumber}
-                    </div>
-                    <div>
-                      <CardTitle className="text-sm">سفارش #{order.id.slice(-4)}</CardTitle>
-                      <CardDescription className="text-[10px] text-[#A89B95]">
-                        {new Date(order.timestamp).toLocaleTimeString('fa-IR')}
-                      </CardDescription>
-                    </div>
+                    <div className="bg-[#D4A853] text-[#1C0F0A] w-8 h-8 rounded flex items-center justify-center font-bold">{order.tableNumber}</div>
+                    <CardTitle className="text-sm">میز {order.tableNumber}</CardTitle>
                   </div>
-                  <Badge variant={order.status === 'DELIVERED' ? 'secondary' : 'default'} className={order.status === 'NEW' ? 'bg-red-500' : ''}>
-                    {order.status === 'NEW' ? 'جدید' : order.status === 'PREPARING' ? 'آماده‌سازی' : 'تحویل شده'}
-                  </Badge>
+                  <Badge className={order.status === 'NEW' ? 'bg-red-500' : ''}>{order.status}</Badge>
                 </CardHeader>
                 <CardContent className="p-4">
-                  <ul className="text-sm space-y-2 mb-4">
+                  <ul className="text-xs space-y-1 mb-4">
                     {order.items.map((item, i) => (
-                      <li key={i} className="flex justify-between items-center bg-[#1C0F0A]/50 p-2 rounded-lg border border-[#3D2B24]/30">
-                        <span className="font-bold">{item.name}</span>
-                        <span className="text-[#D4A853]">× {item.quantity}</span>
-                      </li>
+                      <li key={i} className="flex justify-between"><span>{item.name}</span><span className="text-[#D4A853]">×{item.quantity}</span></li>
                     ))}
                   </ul>
-                  <div className="flex justify-between items-center mb-4 pt-2 border-t border-[#3D2B24]/30">
-                     <span className="text-[#A89B95] text-xs">جمع کل:</span>
-                     <span className="font-bold text-[#D4A853]">{(order.totalPrice / 1000).toLocaleString()} تومان</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button 
-                      size="sm" 
-                      onClick={() => handleUpdateStatus(order.id, 'PREPARING')}
-                      disabled={order.status !== 'NEW'}
-                      className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] rounded-lg h-9"
-                    >
-                      شروع آماده‌سازی
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      onClick={() => handleUpdateStatus(order.id, 'DELIVERED')}
-                      disabled={order.status === 'DELIVERED'}
-                      className="bg-green-600 hover:bg-green-700 text-white text-[10px] rounded-lg h-9"
-                    >
-                      تایید تحویل
-                    </Button>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => handleUpdateStatus(order.id, 'PREPARING')} disabled={order.status !== 'NEW'} className="flex-1 text-[10px]">آماده‌سازی</Button>
+                    <Button size="sm" onClick={() => handleUpdateStatus(order.id, 'DELIVERED')} disabled={order.status === 'DELIVERED'} className="flex-1 text-[10px]">تحویل</Button>
                   </div>
                 </CardContent>
               </Card>
@@ -635,74 +558,25 @@ function AdminDashboard({ menu, setMenu }: { menu: MenuItem[], setMenu: any }) {
         </TabsContent>
 
         <TabsContent value="menu">
-           <AdminMenuManager menu={menu} setMenu={setMenu} />
+           <AdminMenuManager menu={menu} />
         </TabsContent>
 
         <TabsContent value="feedback" className="space-y-4">
-           <Card className="bg-[#2A1810] border-[#D4A853]/30">
-              <CardHeader className="p-4">
-                <CardTitle className="text-md flex items-center gap-2">
-                  <BarChart3 size={18} /> تحلیل هوشمند نظرات
-                </CardTitle>
-                <CardDescription className="text-xs">با استفاده از هوش مصنوعی، خلاصه‌ای از تجربه مشتریان را ببینید.</CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <Button 
-                  onClick={handleSummarizeFeedback} 
-                  disabled={isLoadingSummary || feedback.length === 0}
-                  className="w-full bg-[#D4A853] text-[#1C0F0A] rounded-xl font-bold h-10"
-                >
-                  {isLoadingSummary ? 'در حال تحلیل...' : 'تحلیل نظرات اخیر'}
-                </Button>
-                {summary && (
-                  <div className="mt-4 bg-[#3D2B24]/50 p-4 rounded-xl border border-[#D4A853]/20 animate-fade-in">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs font-bold text-[#D4A853]">وضعیت کلی:</span>
-                      <Badge className="bg-[#D4A853] text-[#1C0F0A]">{summary.overallSentiment}</Badge>
-                    </div>
-                    <p className="text-xs text-[#F5E6D3] leading-relaxed mb-4">{summary.summary}</p>
-                    <div className="flex flex-wrap gap-1">
-                      {summary.commonThemes.map((t: string, i: number) => (
-                        <Badge key={i} variant="outline" className="text-[9px] border-[#D4A853]/20 text-[#D4A853] bg-[#D4A853]/5">
-                          {t}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-           </Card>
-
-           <div className="space-y-3">
-             <h3 className="text-sm font-bold text-[#A89B95] pr-2">آخرین بازخوردها</h3>
-             {feedback.map((f, i) => (
-               <div key={i} className="bg-[#2A1810] border border-[#3D2B24] p-3 rounded-xl animate-fade-in" style={{ animationDelay: `${i * 0.1}s` }}>
-                  <div className="flex justify-between mb-2">
-                    <div className="flex gap-0.5">
-                      {[1,2,3,4,5].map(s => <Star key={s} size={12} fill={s <= f.rating ? '#D4A853' : 'transparent'} color="#D4A853" />)}
-                    </div>
-                    <span className="text-[10px] text-[#A89B95]">{new Date(f.timestamp).toLocaleDateString('fa-IR')}</span>
-                  </div>
-                  <p className="text-xs text-[#F5E6D3] leading-relaxed">{f.comment}</p>
-               </div>
-             ))}
-           </div>
+           <Button onClick={handleSummarizeFeedback} disabled={isLoadingSummary || !feedback} className="w-full bg-[#D4A853]">تحلیل هوشمند نظرات</Button>
+           {summary && <div className="p-3 bg-[#3D2B24] rounded-lg text-xs">{summary.summary}</div>}
+           {feedback?.map((f, i) => (
+             <div key={i} className="bg-[#2A1810] p-3 rounded-lg border border-[#3D2B24]">
+               <div className="flex justify-between"><div className="flex">{[...Array(f.rating)].map((_,s)=> <Star key={s} size={10} fill="#D4A853" color="#D4A853" />)}</div></div>
+               <p className="text-xs mt-1">{f.comment}</p>
+             </div>
+           ))}
         </TabsContent>
 
         <TabsContent value="qr" className="grid grid-cols-2 gap-4">
-           {[...Array(10)].map((_, i) => (
-             <Card key={i} className="bg-white p-3 rounded-2xl text-black border-none shadow-xl flex flex-col items-center group active:scale-95 transition-all">
-                <p className="text-sm font-bold mb-2">میز {i+1}</p>
-                <div className="bg-gray-50 p-2 rounded-xl border border-gray-100 mb-2">
-                  <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://rezaxm80-max.github.io/cafe-didar?table=${i+1}`} 
-                    alt={`QR Table ${i+1}`}
-                    className="w-full h-auto"
-                  />
-                </div>
-                <Button size="sm" variant="ghost" className="text-[10px] h-7 w-full border-t border-gray-100 rounded-none hover:bg-gray-50">
-                  دانلود QR
-                </Button>
+           {[...Array(6)].map((_, i) => (
+             <Card key={i} className="bg-white p-2 text-black text-center">
+                <p className="text-xs font-bold">میز {i+1}</p>
+                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${window.location.origin}?table=${i+1}`} alt="QR" className="mx-auto my-2" />
              </Card>
            ))}
         </TabsContent>
@@ -711,249 +585,55 @@ function AdminDashboard({ menu, setMenu }: { menu: MenuItem[], setMenu: any }) {
   );
 }
 
-function AdminMenuManager({ menu, setMenu }: { menu: MenuItem[], setMenu: any }) {
+function AdminMenuManager({ menu }: { menu: MenuItem[] }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [editForm, setEditForm] = useState<Partial<MenuItem>>({});
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  const handleEdit = (item: MenuItem) => {
-    setEditingId(item.id);
-    setEditForm({ ...item }); // Ensure full object is copied
-    setIsAdding(false);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleAddNew = () => {
-    setEditingId(null);
-    setIsAdding(true);
-    setEditForm({
-      id: Math.random().toString(36).substr(2, 9),
-      name: '',
-      description: '',
-      price: 0,
-      category: 'HOT',
-      emoji: '☕'
-    });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const firestore = useFirestore();
 
   const handleSave = () => {
-    if (!editForm.name || !editForm.price) {
-      alert('لطفاً نام و قیمت را وارد کنید.');
-      return;
-    }
-    let updated;
+    if (!firestore || !editForm.name) return;
     if (isAdding) {
-      updated = [...menu, editForm as MenuItem];
-    } else {
-      updated = menu.map(m => m.id === editingId ? { ...m, ...editForm } as MenuItem : m);
+      addDoc(collection(firestore, 'menu'), editForm)
+        .then(() => { setIsAdding(false); setEditForm({}); })
+        .catch(async () => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'menu', operation: 'create', requestResourceData: editForm })));
+    } else if (editingId) {
+      updateDoc(doc(firestore, 'menu', editingId), editForm)
+        .then(() => { setEditingId(null); setEditForm({}); })
+        .catch(async () => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `menu/${editingId}`, operation: 'update', requestResourceData: editForm })));
     }
-    setMenu(updated);
-    saveMenu(updated);
-    setEditingId(null);
-    setIsAdding(false);
-    setEditForm({});
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('آیا از حذف این آیتم اطمینان دارید؟')) {
-      const updated = menu.filter(m => m.id !== id);
-      setMenu(updated);
-      saveMenu(updated);
-    }
-  };
-
-  const handleGenerateDesc = async () => {
-    if (!editForm.name) return;
-    setIsGenerating(true);
-    try {
-      const result = await generateMenuItemDescription({ 
-        itemName: editForm.name, 
-        keywords: [editForm.category || '', editForm.name] 
-      });
-      setEditForm(prev => ({ ...prev, description: result.description }));
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setEditForm(prev => ({ ...prev, image: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!firestore || !confirm('حذف شود؟')) return;
+    deleteDoc(doc(firestore, 'menu', id))
+      .catch(async () => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `menu/${id}`, operation: 'delete' })));
   };
 
   return (
-    <div className="space-y-6">
-      {!editingId && !isAdding && (
-        <Button onClick={handleAddNew} className="w-full bg-[#D4A853] hover:bg-[#D4A853]/90 text-[#1C0F0A] rounded-xl flex items-center gap-2 font-bold h-12 shadow-lg shadow-[#D4A853]/10">
-          <PlusCircle size={20} /> افزودن آیتم جدید به منو
-        </Button>
-      )}
-
-      {(editingId || isAdding) && (
-        <Card className="bg-[#2A1810] border-[#D4A853] p-5 rounded-3xl space-y-4 animate-slide-up shadow-2xl shadow-black/50">
-           <div className="flex justify-between items-center mb-2">
-              <div className="flex items-center gap-2 text-[#D4A853]">
-                {isAdding ? <PlusCircle size={20} /> : <Pencil size={20} />}
-                <h4 className="font-bold text-lg">{isAdding ? 'افزودن آیتم جدید' : 'ویرایش آیتم'}</h4>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => {setEditingId(null); setIsAdding(false); setEditForm({});}} 
-                className="text-[#A89B95] hover:text-white"
-              >
-                <X size={20} />
-              </Button>
-           </div>
-           
-           <div className="space-y-4">
-              <div className="flex gap-4 items-center">
-                <div className="relative w-24 h-24 shrink-0">
-                  <div className="w-full h-full bg-[#1C0F0A] rounded-2xl flex items-center justify-center overflow-hidden border-2 border-dashed border-[#3D2B24] group hover:border-[#D4A853]/50 transition-all">
-                    {editForm.image ? (
-                      <img src={editForm.image} alt="Upload" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-4xl">{editForm.emoji}</span>
-                    )}
-                    <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity">
-                      <ImageIcon size={20} className="text-white mb-1" />
-                      <span className="text-[10px] text-white">تغییر عکس</span>
-                      <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
-                    </label>
-                  </div>
-                </div>
-                <div className="flex-1 space-y-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-[#A89B95] mr-1">نام محصول</label>
-                    <Input 
-                      value={editForm.name} 
-                      onChange={e => setEditForm({...editForm, name: e.target.value})} 
-                      placeholder="نام آیتم (مثلاً اسپرسو)" 
-                      className="bg-[#1C0F0A] border-[#3D2B24] rounded-xl h-11 text-sm focus:border-[#D4A853]/50" 
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] text-[#A89B95] mr-1">دسته‌بندی</label>
-                  <select 
-                    value={editForm.category} 
-                    onChange={e => setEditForm({...editForm, category: e.target.value as Category})}
-                    className="bg-[#1C0F0A] border border-[#3D2B24] rounded-xl px-3 text-sm text-[#F5E6D3] h-11 w-full focus:outline-none focus:border-[#D4A853]/50"
-                  >
-                    <option value="HOT">☕ بار گرم</option>
-                    <option value="COLD">🍹 بار سرد</option>
-                    <option value="DESSERT">🍰 دسر</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] text-[#A89B95] mr-1">قیمت (تومان)</label>
-                  <Input 
-                    type="number" 
-                    value={editForm.price} 
-                    onChange={e => setEditForm({...editForm, price: Number(e.target.value)})} 
-                    placeholder="قیمت" 
-                    className="bg-[#1C0F0A] border-[#3D2B24] rounded-xl h-11 text-sm focus:border-[#D4A853]/50" 
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex justify-between items-center mr-1">
-                  <label className="text-[10px] text-[#A89B95]">توضیحات محصول</label>
-                  <button 
-                    onClick={handleGenerateDesc} 
-                    disabled={isGenerating || !editForm.name}
-                    className="text-[10px] text-[#D4A853] hover:underline flex items-center gap-1 disabled:opacity-50"
-                  >
-                    {isGenerating ? 'در حال تولید...' : 'تولید با هوش مصنوعی'} <Coffee size={12} />
-                  </button>
-                </div>
-                <Textarea 
-                  value={editForm.description} 
-                  onChange={e => setEditForm({...editForm, description: e.target.value})} 
-                  placeholder="توضیحات کوتاه درباره محصول بنویسید..." 
-                  className="bg-[#1C0F0A] border-[#3D2B24] text-xs rounded-xl min-h-[100px] focus:border-[#D4A853]/50 leading-relaxed" 
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <Button onClick={handleSave} className="flex-1 bg-[#D4A853] text-[#1C0F0A] font-bold rounded-2xl h-12 flex items-center gap-2">
-                  <Save size={18} /> {isAdding ? 'ثبت محصول' : 'ذخیره تغییرات'}
-                </Button>
-                <Button 
-                  onClick={() => {setEditingId(null); setIsAdding(false); setEditForm({});}} 
-                  variant="outline" 
-                  className="flex-1 border-[#3D2B24] text-[#A89B95] hover:text-white rounded-2xl h-12"
-                >
-                  انصراف
-                </Button>
-              </div>
-           </div>
+    <div className="space-y-4">
+      <Button onClick={() => { setIsAdding(true); setEditForm({ category: 'HOT' }); }} className="w-full bg-[#D4A853] text-[#1C0F0A]">افزودن آیتم جدید</Button>
+      {(isAdding || editingId) && (
+        <Card className="bg-[#2A1810] p-4 space-y-3">
+          <Input placeholder="نام" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="bg-[#1C0F0A] border-[#3D2B24]" />
+          <Input placeholder="قیمت" type="number" value={editForm.price} onChange={e => setEditForm({...editForm, price: Number(e.target.value)})} className="bg-[#1C0F0A] border-[#3D2B24]" />
+          <Textarea placeholder="توضیحات" value={editForm.description} onChange={e => setEditForm({...editForm, description: e.target.value})} className="bg-[#1C0F0A] border-[#3D2B24]" />
+          <div className="flex gap-2">
+            <Button onClick={handleSave} className="flex-1 bg-[#D4A853]">ذخیره</Button>
+            <Button onClick={() => { setIsAdding(false); setEditingId(null); }} variant="outline" className="flex-1">انصراف</Button>
+          </div>
         </Card>
       )}
-
-      <div className="space-y-3">
-        <div className="flex items-center justify-between px-2">
-           <h3 className="text-sm font-bold text-[#A89B95]">لیست محصولات منو ({menu.length})</h3>
-           <div className="flex gap-2">
-              <Badge variant="outline" className="text-[9px] border-[#3D2B24]">گرم: {menu.filter(i => i.category === 'HOT').length}</Badge>
-              <Badge variant="outline" className="text-[9px] border-[#3D2B24]">سرد: {menu.filter(i => i.category === 'COLD').length}</Badge>
-           </div>
-        </div>
-        
-        <div className="grid gap-3">
-          {menu.map(item => (
-            <div key={item.id} className="bg-[#2A1810] border border-[#3D2B24] p-3 rounded-2xl flex items-center justify-between group hover:border-[#D4A853]/40 transition-all duration-300">
-               <div className="flex items-center gap-4">
-                 <div className="w-12 h-12 bg-[#1C0F0A] rounded-xl flex items-center justify-center text-xl overflow-hidden shrink-0 border border-[#3D2B24]">
-                    {item.image ? (
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <span>{item.emoji}</span>
-                    )}
-                 </div>
-                 <div className="min-w-0">
-                   <p className="font-bold text-sm text-[#F5E6D3] truncate">{item.name}</p>
-                   <div className="flex items-center gap-2 mt-0.5">
-                     <p className="text-[11px] text-[#D4A853] font-bold">{(item.price/1000).toLocaleString()} <span className="text-[8px]">تومان</span></p>
-                     <span className="text-[8px] text-[#A89B95]">• {item.category === 'HOT' ? 'گرم' : item.category === 'COLD' ? 'سرد' : 'دسر'}</span>
-                   </div>
-                 </div>
-               </div>
-               <div className="flex gap-2">
-                  <Button 
-                    size="icon" 
-                    onClick={() => handleEdit(item)} 
-                    className="bg-[#D4A853]/10 text-[#D4A853] hover:bg-[#D4A853] hover:text-[#1C0F0A] w-9 h-9 rounded-xl transition-all"
-                    title="ویرایش"
-                  >
-                    <Pencil size={16} />
-                  </Button>
-                  <Button 
-                    size="icon" 
-                    onClick={() => handleDelete(item.id)} 
-                    className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white w-9 h-9 rounded-xl transition-all"
-                    title="حذف"
-                  >
-                    <Trash2 size={16} />
-                  </Button>
-               </div>
+      <div className="space-y-2">
+        {menu.map(item => (
+          <div key={item.id} className="bg-[#2A1810] p-3 rounded-xl flex justify-between items-center border border-[#3D2B24]">
+            <span className="text-sm">{item.name}</span>
+            <div className="flex gap-2">
+              <Button size="icon" variant="ghost" onClick={() => { setEditingId(item.id); setEditForm(item); }}><Pencil size={14} /></Button>
+              <Button size="icon" variant="ghost" onClick={() => handleDelete(item.id)} className="text-red-500"><Trash2 size={14} /></Button>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     </div>
   );
