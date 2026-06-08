@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, MenuItem, OrderItem, Category } from '@/lib/types';
 import { 
   Coffee, 
@@ -434,15 +434,34 @@ function AdminLogin({ onLoginSuccess }: any) {
 }
 
 function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery, setGallery }: any) {
-  const [orders, setOrders] = useState<any[]>([]);
+  const [rawOrders, setRawOrders] = useState<any[]>([]);
+  const [localStatuses, setLocalStatuses] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState('orders');
   const [isCompletedExpanded, setIsCompletedExpanded] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('cafe_order_statuses');
+    if (stored) {
+      try {
+        setLocalStatuses(JSON.parse(stored));
+      } catch (e) {
+        console.error('Failed to parse local statuses');
+      }
+    }
+  }, []);
+
+  const orders = useMemo(() => {
+    return rawOrders.map(o => ({
+      ...o,
+      status: localStatuses[o.id] || o.status
+    }));
+  }, [rawOrders, localStatuses]);
 
   const fetchOrders = async () => {
     try {
       const res = await fetch(GAS_URL);
       const data = await res.json();
-      if (Array.isArray(data)) setOrders(data);
+      if (Array.isArray(data)) setRawOrders(data);
     } catch (err) {
       console.error('Failed to load orders from GAS:', err);
     }
@@ -462,11 +481,11 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
     });
 
     try {
-      // Optimistic UI update
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+      const updatedStatuses = { ...localStatuses, [orderId]: newStatus };
+      setLocalStatuses(updatedStatuses);
+      localStorage.setItem('cafe_order_statuses', JSON.stringify(updatedStatuses));
+      
       await fetch(`${GAS_URL}?${params.toString()}`, { mode: 'no-cors' });
-      // Refresh to ensure sync
-      fetchOrders();
     } catch (err) {
       console.error('Failed to update status:', err);
     }
