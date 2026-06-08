@@ -21,7 +21,8 @@ import {
   Clock,
   AlertCircle,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ClipboardCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -123,7 +124,7 @@ export default function CafeDidarApp() {
       tableNumber: table,
       items: itemsStr,
       totalPrice: cartTotal.toString(),
-      status: 'جدید'
+      status: 'در انتظار تایید'
     });
 
     try {
@@ -468,15 +469,14 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
 
   const orders = useMemo(() => {
     return rawOrders.map((o, index) => {
-      // Use "done" status from Google Sheets as source of truth for completion
-      // Otherwise, use local override or default to "جدید"
       let finalStatus = o.status;
       if (finalStatus !== 'done') {
-        finalStatus = localStatuses[o.id] || 'جدید';
+        // Default new orders to "Pending Review" if no local override exists
+        finalStatus = localStatuses[o.id] || 'در انتظار تایید';
       }
       return {
         ...o,
-        rowIndex: index + 2, // Assuming standard Google Sheet with header at row 1
+        rowIndex: index + 2,
         status: finalStatus
       };
     });
@@ -490,15 +490,11 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
     });
 
     try {
-      // Optimistic update locally
       const updatedStatuses = { ...localStatuses, [order.id]: newStatus };
       setLocalStatuses(updatedStatuses);
       localStorage.setItem('cafe_order_statuses', JSON.stringify(updatedStatuses));
       
-      // Update remote Google Sheets
       await fetch(`${GAS_URL}?${params.toString()}`, { mode: 'no-cors' });
-      
-      // Optionally trigger immediate fetch to sync state
       fetchOrders();
     } catch (err) {
       console.error('Failed to update status:', err);
@@ -510,8 +506,8 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'جدید':
-        return <Badge className="bg-red-500/10 text-red-500 border-red-500/20 flex items-center gap-1"><AlertCircle size={12} /> جدید</Badge>;
+      case 'در انتظار تایید':
+        return <Badge className="bg-red-500/10 text-red-500 border-red-500/20 flex items-center gap-1"><AlertCircle size={12} /> در انتظار تایید</Badge>;
       case 'در حال آماده‌سازی':
         return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 flex items-center gap-1"><Clock size={12} /> در حال آماده‌سازی</Badge>;
       case 'done':
@@ -563,19 +559,30 @@ function AdminDashboard({ menu, setMenu, feedback, members, setMembers, gallery,
                     <span className="text-lg font-black text-[#D4A853]">{(Number(order.totalPrice) / 1000).toLocaleString()} تومان</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => handleUpdateStatus(order, 'در حال آماده‌سازی')}
-                      className="border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 text-[10px] font-black flex items-center gap-2 h-10"
-                    >
-                      <Clock size={14} /> آماده‌سازی
-                    </Button>
-                    <Button 
-                      onClick={() => handleUpdateStatus(order, 'done')}
-                      className="bg-green-600 hover:bg-green-700 text-white text-[10px] font-black flex items-center gap-2 h-10"
-                    >
-                      <CheckCircle2 size={14} /> تحویل
-                    </Button>
+                    {order.status === 'در انتظار تایید' ? (
+                      <Button 
+                        onClick={() => handleUpdateStatus(order, 'در حال آماده‌سازی')}
+                        className="col-span-2 bg-[#D4A853] hover:bg-[#B88A3E] text-[#1C0F0A] text-[10px] font-black flex items-center justify-center gap-2 h-10"
+                      >
+                        <ClipboardCheck size={14} /> تایید و شروع آماده‌سازی
+                      </Button>
+                    ) : (
+                      <>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => handleUpdateStatus(order, 'در حال آماده‌سازی')}
+                          className="border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 text-[10px] font-black flex items-center gap-2 h-10"
+                        >
+                          <Clock size={14} /> آماده‌سازی
+                        </Button>
+                        <Button 
+                          onClick={() => handleUpdateStatus(order, 'done')}
+                          className="bg-green-600 hover:bg-green-700 text-white text-[10px] font-black flex items-center gap-2 h-10"
+                        >
+                          <CheckCircle2 size={14} /> تحویل
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </CardContent>
               </Card>
