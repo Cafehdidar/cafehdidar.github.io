@@ -13,12 +13,12 @@ import {
   getStoredFeedback,
   saveFeedback
 } from '@/lib/storage';
-import { Coffee, MessageCircle, Star, Image as ImageIcon, ShoppingCart, CheckCircle2, Plus, Minus, Trash2, QrCode, LogIn, LayoutDashboard, PlusCircle } from 'lucide-react';
+import { Coffee, MessageCircle, Star, Image as ImageIcon, ShoppingCart, CheckCircle2, Plus, Minus, Trash2, QrCode, LogIn, LayoutDashboard, PlusCircle, Pencil, Save, X, Settings2, BarChart3, ListOrdered } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { generateMenuItemDescription } from '@/ai/flows/generate-menu-item-description';
 import { summarizeCustomerFeedback } from '@/ai/flows/summarize-customer-feedback-flow';
@@ -99,7 +99,6 @@ export default function CafeDidarApp() {
 
   return (
     <div className="flex flex-col min-h-screen max-w-[500px] mx-auto relative overflow-x-hidden bg-[#1C0F0A]">
-      {/* Redesigned Header: Glassmorphic with subtle glow */}
       <header className="h-[60px] flex items-center justify-between px-4 bg-black/40 backdrop-blur-lg border-b border-[#D4A853]/30 shadow-[0_0_15px_rgba(212,168,83,0.2)] fixed top-0 w-full max-w-[500px] z-[100]">
         <div className="flex items-center gap-2">
           {currentView === 'MENU' && (
@@ -116,9 +115,14 @@ export default function CafeDidarApp() {
               )}
             </button>
           )}
-          {currentView !== 'MENU' && (
+          {currentView !== 'MENU' && currentView !== 'ADMIN_LOGIN' && currentView !== 'ADMIN_DASHBOARD' && (
             <button onClick={() => setCurrentView('MENU')} className="text-[#D4A853] text-sm font-bold flex items-center gap-1">
               <Plus size={16} className="rotate-45" /> بازگشت
+            </button>
+          )}
+          {(currentView === 'ADMIN_LOGIN' || currentView === 'ADMIN_DASHBOARD') && (
+            <button onClick={() => setCurrentView('MENU')} className="text-[#D4A853] text-sm font-bold flex items-center gap-1">
+              <X size={16} /> خروج
             </button>
           )}
         </div>
@@ -130,7 +134,6 @@ export default function CafeDidarApp() {
         </h1>
       </header>
 
-      {/* Main Content: Increased margin to prevent overlap */}
       <main className="mt-[60px] mb-[70px] flex-1 overflow-y-auto overflow-x-hidden relative">
         {currentView === 'MENU' && (
           <MenuView 
@@ -150,7 +153,6 @@ export default function CafeDidarApp() {
         {currentView === 'ADMIN_DASHBOARD' && <AdminDashboard menu={menu} setMenu={setMenu} />}
       </main>
 
-      {/* Bottom Nav */}
       <nav className="h-[70px] bg-[#1C0F0A]/90 backdrop-blur-md border-t border-[#3D2B24] fixed bottom-0 w-full max-w-[500px] z-50 flex items-center justify-around px-2">
         <NavButton active={currentView === 'MENU'} icon={<Coffee size={20} />} label="منو" onClick={() => setCurrentView('MENU')} />
         <NavButton active={currentView === 'FEEDBACK'} icon={<MessageCircle size={20} />} label="نظرات" onClick={() => setCurrentView('FEEDBACK')} />
@@ -211,7 +213,6 @@ function MenuView({
                 <div className="flex items-center justify-between mt-auto">
                   <span className="text-[#D4A853] font-bold text-sm">{(item.price / 1000).toLocaleString()} <span className="text-[10px]">تومان</span></span>
                   
-                  {/* Quantity Controller Replacement */}
                   {cartItem ? (
                     <div className="flex items-center gap-2 bg-[#1C0F0A] rounded-full px-2 py-1 border border-[#3D2B24] scale-90 origin-left">
                       <button 
@@ -507,11 +508,14 @@ function AdminDashboard({ menu, setMenu }: { menu: MenuItem[], setMenu: any }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [feedback, setFeedback] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
 
   useEffect(() => {
     setOrders(getStoredOrders());
     setFeedback(getStoredFeedback());
-    const interval = setInterval(() => setOrders(getStoredOrders()), 5000);
+    const interval = setInterval(() => {
+      setOrders(getStoredOrders());
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -523,102 +527,183 @@ function AdminDashboard({ menu, setMenu }: { menu: MenuItem[], setMenu: any }) {
 
   const handleSummarizeFeedback = async () => {
     if (feedback.length === 0) return;
-    const result = await summarizeCustomerFeedback({ feedback: feedback.map(f => ({ comment: f.comment, rating: f.rating, timestamp: f.timestamp })) });
-    setSummary(result);
+    setIsLoadingSummary(true);
+    try {
+      const result = await summarizeCustomerFeedback({ 
+        feedback: feedback.map(f => ({ 
+          comment: f.comment, 
+          rating: f.rating, 
+          timestamp: f.timestamp 
+        })) 
+      });
+      setSummary(result);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingSummary(false);
+    }
   };
 
+  const newOrdersCount = orders.filter(o => o.status === 'NEW').length;
+
   return (
-    <div className="p-4 animate-fade-in">
-      <h2 className="text-xl font-bold mb-6 text-[#D4A853] flex items-center gap-2"><LayoutDashboard /> پنل مدیریت</h2>
+    <div className="p-4 animate-fade-in bg-[#1C0F0A] min-h-screen">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-bold text-[#D4A853] flex items-center gap-2">
+          <Settings2 size={24} /> پنل مدیریت هوشمند
+        </h2>
+        {newOrdersCount > 0 && (
+          <Badge className="bg-red-500 animate-pulse py-1 px-3">
+            {newOrdersCount} سفارش جدید
+          </Badge>
+        )}
+      </div>
+
       <Tabs defaultValue="orders" className="w-full">
-        <TabsList className="bg-[#2A1810] border border-[#3D2B24] grid grid-cols-4 h-12 rounded-xl">
-          <TabsTrigger value="orders" className="text-[10px] font-bold">سفارش‌ها</TabsTrigger>
-          <TabsTrigger value="menu" className="text-[10px] font-bold">منو</TabsTrigger>
-          <TabsTrigger value="feedback" className="text-[10px] font-bold">نظرات</TabsTrigger>
-          <TabsTrigger value="qr" className="text-[10px] font-bold">QR</TabsTrigger>
+        <TabsList className="bg-[#2A1810] border border-[#3D2B24] grid grid-cols-4 h-12 rounded-xl mb-6 p-1">
+          <TabsTrigger value="orders" className="text-[10px] font-bold data-[state=active]:bg-[#D4A853] data-[state=active]:text-[#1C0F0A] rounded-lg">
+            <ListOrdered size={14} className="ml-1" /> سفارش‌ها
+          </TabsTrigger>
+          <TabsTrigger value="menu" className="text-[10px] font-bold data-[state=active]:bg-[#D4A853] data-[state=active]:text-[#1C0F0A] rounded-lg">
+            <Coffee size={14} className="ml-1" /> منو
+          </TabsTrigger>
+          <TabsTrigger value="feedback" className="text-[10px] font-bold data-[state=active]:bg-[#D4A853] data-[state=active]:text-[#1C0F0A] rounded-lg">
+            <MessageCircle size={14} className="ml-1" /> نظرات
+          </TabsTrigger>
+          <TabsTrigger value="qr" className="text-[10px] font-bold data-[state=active]:bg-[#D4A853] data-[state=active]:text-[#1C0F0A] rounded-lg">
+            <QrCode size={14} className="ml-1" /> QR
+          </TabsTrigger>
         </TabsList>
         
-        <TabsContent value="orders" className="space-y-4 mt-4">
-          {orders.map(order => (
-            <div key={order.id} className="bg-[#2A1810] border border-[#3D2B24] rounded-xl p-4">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                   <span className="text-3xl font-bold text-[#D4A853]">میز {order.tableNumber}</span>
-                   {order.status === 'NEW' && <Badge className="mr-2 bg-red-500 animate-pulse">🔴 جدید</Badge>}
-                </div>
-                <span className="text-[10px] text-[#A89B95]">{new Date(order.timestamp).toLocaleTimeString('fa-IR')}</span>
-              </div>
-              <ul className="text-sm border-y border-[#3D2B24] py-2 my-2 space-y-1">
-                {order.items.map((item, i) => (
-                  <li key={i} className="flex justify-between">
-                    <span>{item.name} × {item.quantity}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="flex justify-between items-center mb-4">
-                 <span className="text-[#A89B95] text-xs">جمع کل:</span>
-                 <span className="font-bold text-[#D4A853]">{(order.totalPrice / 1000).toLocaleString()} تومان</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Button 
-                  size="sm" 
-                  onClick={() => handleUpdateStatus(order.id, 'PREPARING')}
-                  disabled={order.status !== 'NEW'}
-                  className="bg-blue-600 text-white text-[10px] rounded-lg"
-                >
-                  در حال آماده‌سازی
-                </Button>
-                <Button 
-                  size="sm" 
-                  onClick={() => handleUpdateStatus(order.id, 'DELIVERED')}
-                  disabled={order.status === 'DELIVERED'}
-                  className="bg-green-600 text-white text-[10px] rounded-lg"
-                >
-                  تحویل داده شد
-                </Button>
-              </div>
-            </div>
-          ))}
+        <TabsContent value="orders" className="space-y-4">
+          {orders.length === 0 ? (
+            <div className="text-center py-20 text-[#A89B95]">سفارشی ثبت نشده است.</div>
+          ) : (
+            orders.map(order => (
+              <Card key={order.id} className="bg-[#2A1810] border-[#3D2B24] overflow-hidden">
+                <CardHeader className="p-4 pb-2 border-b border-[#3D2B24]/50 flex flex-row items-center justify-between space-y-0">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-[#D4A853] text-[#1C0F0A] w-10 h-10 rounded-lg flex items-center justify-center font-bold text-xl">
+                      {order.tableNumber}
+                    </div>
+                    <div>
+                      <CardTitle className="text-sm">سفارش #{order.id.slice(-4)}</CardTitle>
+                      <CardDescription className="text-[10px] text-[#A89B95]">
+                        {new Date(order.timestamp).toLocaleTimeString('fa-IR')}
+                      </CardDescription>
+                    </div>
+                  </div>
+                  <Badge variant={order.status === 'DELIVERED' ? 'secondary' : 'default'} className={order.status === 'NEW' ? 'bg-red-500' : ''}>
+                    {order.status === 'NEW' ? 'جدید' : order.status === 'PREPARING' ? 'آماده‌سازی' : 'تحویل شده'}
+                  </Badge>
+                </CardHeader>
+                <CardContent className="p-4">
+                  <ul className="text-sm space-y-2 mb-4">
+                    {order.items.map((item, i) => (
+                      <li key={i} className="flex justify-between items-center bg-[#1C0F0A]/50 p-2 rounded-lg border border-[#3D2B24]/30">
+                        <span className="font-bold">{item.name}</span>
+                        <span className="text-[#D4A853]">× {item.quantity}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="flex justify-between items-center mb-4 pt-2 border-t border-[#3D2B24]/30">
+                     <span className="text-[#A89B95] text-xs">جمع کل:</span>
+                     <span className="font-bold text-[#D4A853]">{(order.totalPrice / 1000).toLocaleString()} تومان</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button 
+                      size="sm" 
+                      onClick={() => handleUpdateStatus(order.id, 'PREPARING')}
+                      disabled={order.status !== 'NEW'}
+                      className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] rounded-lg h-9"
+                    >
+                      شروع آماده‌سازی
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      onClick={() => handleUpdateStatus(order.id, 'DELIVERED')}
+                      disabled={order.status === 'DELIVERED'}
+                      className="bg-green-600 hover:bg-green-700 text-white text-[10px] rounded-lg h-9"
+                    >
+                      تایید تحویل
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </TabsContent>
 
-        <TabsContent value="menu" className="mt-4">
+        <TabsContent value="menu">
            <AdminMenuManager menu={menu} setMenu={setMenu} />
         </TabsContent>
 
-        <TabsContent value="feedback" className="mt-4 space-y-4">
-           <Button onClick={handleSummarizeFeedback} className="w-full bg-[#D4A853] text-[#1C0F0A] rounded-xl font-bold">خلاصه هوشمند نظرات</Button>
-           {summary && (
-             <div className="bg-[#3D2B24] p-3 rounded-xl text-xs leading-relaxed space-y-2 border border-[#D4A853]/40">
-                <p className="font-bold text-[#D4A853]">خلاصه: {summary.overallSentiment}</p>
-                <p className="text-[#F5E6D3]">{summary.summary}</p>
-                <div className="flex flex-wrap gap-1">
-                  {summary.commonThemes.map((t: string, i: number) => <Badge key={i} variant="outline" className="text-[8px] border-[#D4A853]/20">{t}</Badge>)}
-                </div>
-             </div>
-           )}
-           {feedback.map((f, i) => (
-             <div key={i} className="bg-[#2A1810] border border-[#3D2B24] p-3 rounded-xl">
-                <div className="flex justify-between mb-1">
-                  <div className="flex gap-0.5">
-                    {[1,2,3,4,5].map(s => <Star key={s} size={10} fill={s <= f.rating ? '#D4A853' : 'transparent'} color="#D4A853" />)}
+        <TabsContent value="feedback" className="space-y-4">
+           <Card className="bg-[#2A1810] border-[#D4A853]/30">
+              <CardHeader className="p-4">
+                <CardTitle className="text-md flex items-center gap-2">
+                  <BarChart3 size={18} /> تحلیل هوشمند نظرات
+                </CardTitle>
+                <CardDescription className="text-xs">با استفاده از هوش مصنوعی، خلاصه‌ای از تجربه مشتریان را ببینید.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 pt-0">
+                <Button 
+                  onClick={handleSummarizeFeedback} 
+                  disabled={isLoadingSummary || feedback.length === 0}
+                  className="w-full bg-[#D4A853] text-[#1C0F0A] rounded-xl font-bold h-10"
+                >
+                  {isLoadingSummary ? 'در حال تحلیل...' : 'تحلیل نظرات اخیر'}
+                </Button>
+                {summary && (
+                  <div className="mt-4 bg-[#3D2B24]/50 p-4 rounded-xl border border-[#D4A853]/20 animate-fade-in">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs font-bold text-[#D4A853]">وضعیت کلی:</span>
+                      <Badge className="bg-[#D4A853] text-[#1C0F0A]">{summary.overallSentiment}</Badge>
+                    </div>
+                    <p className="text-xs text-[#F5E6D3] leading-relaxed mb-4">{summary.summary}</p>
+                    <div className="flex flex-wrap gap-1">
+                      {summary.commonThemes.map((t: string, i: number) => (
+                        <Badge key={i} variant="outline" className="text-[9px] border-[#D4A853]/20 text-[#D4A853] bg-[#D4A853]/5">
+                          {t}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                  <span className="text-[8px] text-[#A89B95]">{new Date(f.timestamp).toLocaleDateString('fa-IR')}</span>
-                </div>
-                <p className="text-xs text-[#F5E6D3]">{f.comment}</p>
-             </div>
-           ))}
+                )}
+              </CardContent>
+           </Card>
+
+           <div className="space-y-3">
+             <h3 className="text-sm font-bold text-[#A89B95] pr-2">آخرین بازخوردها</h3>
+             {feedback.map((f, i) => (
+               <div key={i} className="bg-[#2A1810] border border-[#3D2B24] p-3 rounded-xl animate-fade-in" style={{ animationDelay: `${i * 0.1}s` }}>
+                  <div className="flex justify-between mb-2">
+                    <div className="flex gap-0.5">
+                      {[1,2,3,4,5].map(s => <Star key={s} size={12} fill={s <= f.rating ? '#D4A853' : 'transparent'} color="#D4A853" />)}
+                    </div>
+                    <span className="text-[10px] text-[#A89B95]">{new Date(f.timestamp).toLocaleDateString('fa-IR')}</span>
+                  </div>
+                  <p className="text-xs text-[#F5E6D3] leading-relaxed">{f.comment}</p>
+               </div>
+             ))}
+           </div>
         </TabsContent>
 
-        <TabsContent value="qr" className="mt-4 grid grid-cols-2 gap-4">
-           {[...Array(13)].map((_, i) => (
-             <div key={i} className="bg-white p-2 rounded-xl text-black text-center flex flex-col items-center">
-                <p className="text-sm font-bold mb-1">میز {i+1}</p>
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://rezaxm80-max.github.io/cafe-didar?table=${i+1}`} 
-                  alt={`QR Table ${i+1}`}
-                  className="w-full h-auto"
-                />
-             </div>
+        <TabsContent value="qr" className="grid grid-cols-2 gap-4">
+           {[...Array(10)].map((_, i) => (
+             <Card key={i} className="bg-white p-3 rounded-2xl text-black border-none shadow-xl flex flex-col items-center group active:scale-95 transition-all">
+                <p className="text-sm font-bold mb-2">میز {i+1}</p>
+                <div className="bg-gray-50 p-2 rounded-xl border border-gray-100 mb-2">
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://rezaxm80-max.github.io/cafe-didar?table=${i+1}`} 
+                    alt={`QR Table ${i+1}`}
+                    className="w-full h-auto"
+                  />
+                </div>
+                <Button size="sm" variant="ghost" className="text-[10px] h-7 w-full border-t border-gray-100 rounded-none hover:bg-gray-50">
+                  دانلود QR
+                </Button>
+             </Card>
            ))}
         </TabsContent>
       </Tabs>
@@ -634,8 +719,9 @@ function AdminMenuManager({ menu, setMenu }: { menu: MenuItem[], setMenu: any })
 
   const handleEdit = (item: MenuItem) => {
     setEditingId(item.id);
-    setEditForm(item);
+    setEditForm({ ...item }); // Ensure full object is copied
     setIsAdding(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleAddNew = () => {
@@ -649,19 +735,25 @@ function AdminMenuManager({ menu, setMenu }: { menu: MenuItem[], setMenu: any })
       category: 'HOT',
       emoji: '☕'
     });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSave = () => {
+    if (!editForm.name || !editForm.price) {
+      alert('لطفاً نام و قیمت را وارد کنید.');
+      return;
+    }
     let updated;
     if (isAdding) {
       updated = [...menu, editForm as MenuItem];
     } else {
-      updated = menu.map(m => m.id === editingId ? { ...m, ...editForm } : m);
+      updated = menu.map(m => m.id === editingId ? { ...m, ...editForm } as MenuItem : m);
     }
     setMenu(updated);
     saveMenu(updated);
     setEditingId(null);
     setIsAdding(false);
+    setEditForm({});
   };
 
   const handleDelete = (id: string) => {
@@ -700,105 +792,169 @@ function AdminMenuManager({ menu, setMenu }: { menu: MenuItem[], setMenu: any })
   };
 
   return (
-    <div className="space-y-4">
-      <Button onClick={handleAddNew} className="w-full bg-green-600 text-white rounded-xl flex items-center gap-2">
-        <PlusCircle size={20} /> افزودن آیتم جدید
-      </Button>
+    <div className="space-y-6">
+      {!editingId && !isAdding && (
+        <Button onClick={handleAddNew} className="w-full bg-[#D4A853] hover:bg-[#D4A853]/90 text-[#1C0F0A] rounded-xl flex items-center gap-2 font-bold h-12 shadow-lg shadow-[#D4A853]/10">
+          <PlusCircle size={20} /> افزودن آیتم جدید به منو
+        </Button>
+      )}
 
-      {(editingId || isAdding) ? (
-        <div className="bg-[#2A1810] border border-[#D4A853] p-4 rounded-2xl space-y-3 animate-slide-up">
+      {(editingId || isAdding) && (
+        <Card className="bg-[#2A1810] border-[#D4A853] p-5 rounded-3xl space-y-4 animate-slide-up shadow-2xl shadow-black/50">
            <div className="flex justify-between items-center mb-2">
-              <h4 className="font-bold text-[#D4A853]">{isAdding ? 'افزودن آیتم جدید' : 'ویرایش آیتم'}</h4>
-              <Button variant="ghost" size="sm" onClick={() => {setEditingId(null); setIsAdding(false);}} className="text-[#A89B95]"><Trash2 className="rotate-45" size={16} /></Button>
+              <div className="flex items-center gap-2 text-[#D4A853]">
+                {isAdding ? <PlusCircle size={20} /> : <Pencil size={20} />}
+                <h4 className="font-bold text-lg">{isAdding ? 'افزودن آیتم جدید' : 'ویرایش آیتم'}</h4>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => {setEditingId(null); setIsAdding(false); setEditForm({});}} 
+                className="text-[#A89B95] hover:text-white"
+              >
+                <X size={20} />
+              </Button>
            </div>
            
-           <div className="flex gap-3 items-center">
-              <div className="w-16 h-16 bg-[#3D2B24] rounded-xl flex items-center justify-center overflow-hidden border border-[#D4A853]/20 relative group">
-                {editForm.image ? (
-                  <img src={editForm.image} alt="Upload" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-2xl">{editForm.emoji}</span>
-                )}
-                <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
-                  <ImageIcon size={16} />
-                  <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
-                </label>
+           <div className="space-y-4">
+              <div className="flex gap-4 items-center">
+                <div className="relative w-24 h-24 shrink-0">
+                  <div className="w-full h-full bg-[#1C0F0A] rounded-2xl flex items-center justify-center overflow-hidden border-2 border-dashed border-[#3D2B24] group hover:border-[#D4A853]/50 transition-all">
+                    {editForm.image ? (
+                      <img src={editForm.image} alt="Upload" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-4xl">{editForm.emoji}</span>
+                    )}
+                    <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity">
+                      <ImageIcon size={20} className="text-white mb-1" />
+                      <span className="text-[10px] text-white">تغییر عکس</span>
+                      <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                    </label>
+                  </div>
+                </div>
+                <div className="flex-1 space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-[#A89B95] mr-1">نام محصول</label>
+                    <Input 
+                      value={editForm.name} 
+                      onChange={e => setEditForm({...editForm, name: e.target.value})} 
+                      placeholder="نام آیتم (مثلاً اسپرسو)" 
+                      className="bg-[#1C0F0A] border-[#3D2B24] rounded-xl h-11 text-sm focus:border-[#D4A853]/50" 
+                    />
+                  </div>
+                </div>
               </div>
-              <Input 
-                value={editForm.name} 
-                onChange={e => setEditForm({...editForm, name: e.target.value})} 
-                placeholder="نام آیتم" 
-                className="bg-[#1C0F0A] border-[#3D2B24] rounded-xl" 
-              />
-           </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] text-[#A89B95] mr-1">دسته‌بندی</label>
+                  <select 
+                    value={editForm.category} 
+                    onChange={e => setEditForm({...editForm, category: e.target.value as Category})}
+                    className="bg-[#1C0F0A] border border-[#3D2B24] rounded-xl px-3 text-sm text-[#F5E6D3] h-11 w-full focus:outline-none focus:border-[#D4A853]/50"
+                  >
+                    <option value="HOT">☕ بار گرم</option>
+                    <option value="COLD">🍹 بار سرد</option>
+                    <option value="DESSERT">🍰 دسر</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-[#A89B95] mr-1">قیمت (تومان)</label>
+                  <Input 
+                    type="number" 
+                    value={editForm.price} 
+                    onChange={e => setEditForm({...editForm, price: Number(e.target.value)})} 
+                    placeholder="قیمت" 
+                    className="bg-[#1C0F0A] border-[#3D2B24] rounded-xl h-11 text-sm focus:border-[#D4A853]/50" 
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between items-center mr-1">
+                  <label className="text-[10px] text-[#A89B95]">توضیحات محصول</label>
+                  <button 
+                    onClick={handleGenerateDesc} 
+                    disabled={isGenerating || !editForm.name}
+                    className="text-[10px] text-[#D4A853] hover:underline flex items-center gap-1 disabled:opacity-50"
+                  >
+                    {isGenerating ? 'در حال تولید...' : 'تولید با هوش مصنوعی'} <Coffee size={12} />
+                  </button>
+                </div>
+                <Textarea 
+                  value={editForm.description} 
+                  onChange={e => setEditForm({...editForm, description: e.target.value})} 
+                  placeholder="توضیحات کوتاه درباره محصول بنویسید..." 
+                  className="bg-[#1C0F0A] border-[#3D2B24] text-xs rounded-xl min-h-[100px] focus:border-[#D4A853]/50 leading-relaxed" 
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button onClick={handleSave} className="flex-1 bg-[#D4A853] text-[#1C0F0A] font-bold rounded-2xl h-12 flex items-center gap-2">
+                  <Save size={18} /> {isAdding ? 'ثبت محصول' : 'ذخیره تغییرات'}
+                </Button>
+                <Button 
+                  onClick={() => {setEditingId(null); setIsAdding(false); setEditForm({});}} 
+                  variant="outline" 
+                  className="flex-1 border-[#3D2B24] text-[#A89B95] hover:text-white rounded-2xl h-12"
+                >
+                  انصراف
+                </Button>
+              </div>
+           </div>
+        </Card>
+      )}
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between px-2">
+           <h3 className="text-sm font-bold text-[#A89B95]">لیست محصولات منو ({menu.length})</h3>
            <div className="flex gap-2">
-             <select 
-               value={editForm.category} 
-               onChange={e => setEditForm({...editForm, category: e.target.value as Category})}
-               className="bg-[#1C0F0A] border border-[#3D2B24] rounded-xl px-3 text-xs text-[#F5E6D3] h-10 w-32"
-             >
-                <option value="HOT">بار گرم</option>
-                <option value="COLD">بار سرد</option>
-                <option value="DESSERT">دسر</option>
-             </select>
-             <Input 
-               type="number" 
-               value={editForm.price} 
-               onChange={e => setEditForm({...editForm, price: Number(e.target.value)})} 
-               placeholder="قیمت (ریال)" 
-               className="bg-[#1C0F0A] border-[#3D2B24] rounded-xl flex-1" 
-             />
-           </div>
-
-           <div className="flex gap-2">
-             <Textarea 
-               value={editForm.description} 
-               onChange={e => setEditForm({...editForm, description: e.target.value})} 
-               placeholder="توضیحات آیتم..." 
-               className="bg-[#1C0F0A] border-[#3D2B24] flex-1 text-xs rounded-xl min-h-[80px]" 
-             />
-             <Button 
-               onClick={handleGenerateDesc} 
-               disabled={isGenerating || !editForm.name} 
-               size="icon" 
-               className="bg-[#D4A853] text-[#1C0F0A] shrink-0 h-10 w-10 rounded-xl"
-               title="تولید توضیحات با هوش مصنوعی"
-             >
-               <Coffee size={18} />
-             </Button>
-           </div>
-
-           <div className="flex gap-2 pt-2">
-             <Button onClick={handleSave} className="flex-1 bg-[#D4A853] text-[#1C0F0A] font-bold rounded-xl">ذخیره تغییرات</Button>
-             <Button onClick={() => {setEditingId(null); setIsAdding(false);}} variant="outline" className="flex-1 border-[#3D2B24] text-[#A89B95] rounded-xl">انصراف</Button>
+              <Badge variant="outline" className="text-[9px] border-[#3D2B24]">گرم: {menu.filter(i => i.category === 'HOT').length}</Badge>
+              <Badge variant="outline" className="text-[9px] border-[#3D2B24]">سرد: {menu.filter(i => i.category === 'COLD').length}</Badge>
            </div>
         </div>
-      ) : (
-        <div className="space-y-3">
+        
+        <div className="grid gap-3">
           {menu.map(item => (
-            <div key={item.id} className="bg-[#2A1810] border border-[#3D2B24] p-3 rounded-2xl flex items-center justify-between group hover:border-[#D4A853]/40 transition-all">
-               <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 bg-[#3D2B24] rounded-lg flex items-center justify-center text-xl overflow-hidden">
-                    {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" /> : item.emoji}
+            <div key={item.id} className="bg-[#2A1810] border border-[#3D2B24] p-3 rounded-2xl flex items-center justify-between group hover:border-[#D4A853]/40 transition-all duration-300">
+               <div className="flex items-center gap-4">
+                 <div className="w-12 h-12 bg-[#1C0F0A] rounded-xl flex items-center justify-center text-xl overflow-hidden shrink-0 border border-[#3D2B24]">
+                    {item.image ? (
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span>{item.emoji}</span>
+                    )}
                  </div>
-                 <div>
-                   <p className="font-bold text-sm text-[#F5E6D3]">{item.name}</p>
-                   <p className="text-[10px] text-[#D4A853]">{(item.price/1000).toLocaleString()} تومان</p>
+                 <div className="min-w-0">
+                   <p className="font-bold text-sm text-[#F5E6D3] truncate">{item.name}</p>
+                   <div className="flex items-center gap-2 mt-0.5">
+                     <p className="text-[11px] text-[#D4A853] font-bold">{(item.price/1000).toLocaleString()} <span className="text-[8px]">تومان</span></p>
+                     <span className="text-[8px] text-[#A89B95]">• {item.category === 'HOT' ? 'گرم' : item.category === 'COLD' ? 'سرد' : 'دسر'}</span>
+                   </div>
                  </div>
                </div>
-               <div className="flex gap-1">
-                  <Button size="sm" onClick={() => handleEdit(item)} className="bg-[#D4A853]/10 text-[#D4A853] hover:bg-[#D4A853] hover:text-[#1C0F0A] p-2 h-auto rounded-lg transition-all">
-                    <LayoutDashboard size={14} />
+               <div className="flex gap-2">
+                  <Button 
+                    size="icon" 
+                    onClick={() => handleEdit(item)} 
+                    className="bg-[#D4A853]/10 text-[#D4A853] hover:bg-[#D4A853] hover:text-[#1C0F0A] w-9 h-9 rounded-xl transition-all"
+                    title="ویرایش"
+                  >
+                    <Pencil size={16} />
                   </Button>
-                  <Button size="sm" onClick={() => handleDelete(item.id)} className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white p-2 h-auto rounded-lg transition-all">
-                    <Trash2 size={14} />
+                  <Button 
+                    size="icon" 
+                    onClick={() => handleDelete(item.id)} 
+                    className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white w-9 h-9 rounded-xl transition-all"
+                    title="حذف"
+                  >
+                    <Trash2 size={16} />
                   </Button>
                </div>
             </div>
           ))}
         </div>
-      )}
+      </div>
     </div>
   );
 }
