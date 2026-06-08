@@ -22,7 +22,10 @@ import {
   Sparkles,
   ChevronLeft,
   Loader2,
-  Box
+  Box,
+  LayoutDashboard,
+  TrendingUp,
+  Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,7 +37,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { summarizeCustomerFeedback } from '@/ai/flows/summarize-customer-feedback-flow';
 import { generateMenuItemDescription } from '@/ai/flows/generate-menu-item-description';
 import { useCollection, useFirestore } from '@/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp, limit } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { cn } from '@/lib/utils';
@@ -48,6 +51,7 @@ export default function CafeDidarApp() {
   
   const firestore = useFirestore();
 
+  // Optimized Menu Query
   const menuQuery = useMemo(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'menu'), orderBy('name', 'asc'));
@@ -56,10 +60,13 @@ export default function CafeDidarApp() {
   const { data: menuData, loading: menuLoading } = useCollection<MenuItem>(menuQuery);
   const menu = menuData || [];
 
+  // Table number detection from URL
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const table = params.get('table');
-    if (table) setTableNumber(table);
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const table = params.get('table');
+      if (table) setTableNumber(table);
+    }
   }, []);
 
   const addToCart = (item: MenuItem) => {
@@ -356,11 +363,6 @@ function CartView({ cart, updateQuantity, removeFromCart, total, tableNumber, on
             <p className="text-[#D4A853]/60 text-xs font-bold">بزودی آماده پذیرایی از شما هستیم.</p>
           </div>
         </div>
-        <div className="mt-16 flex gap-4">
-           <div className="w-2.5 h-2.5 rounded-full bg-[#D4A853] animate-bounce [animation-delay:-0.3s]"></div>
-           <div className="w-2.5 h-2.5 rounded-full bg-[#D4A853] animate-bounce [animation-delay:-0.15s]"></div>
-           <div className="w-2.5 h-2.5 rounded-full bg-[#D4A853] animate-bounce"></div>
-        </div>
       </div>
     );
   }
@@ -621,10 +623,19 @@ function AdminLogin({ onLoginSuccess }: { onLoginSuccess: () => void }) {
 function AdminDashboard({ menu }: { menu: MenuItem[] }) {
   const firestore = useFirestore();
   
-  const ordersQuery = useMemo(() => firestore ? query(collection(firestore, 'orders'), orderBy('timestamp', 'desc')) : null, [firestore]);
+  // Real-time queries for admin dashboard
+  const ordersQuery = useMemo(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'orders'), orderBy('createdAt', 'desc'), limit(50));
+  }, [firestore]);
+  
   const { data: orders, loading: ordersLoading } = useCollection<Order>(ordersQuery);
 
-  const feedbackQuery = useMemo(() => firestore ? query(collection(firestore, 'feedback'), orderBy('timestamp', 'desc')) : null, [firestore]);
+  const feedbackQuery = useMemo(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'feedback'), orderBy('createdAt', 'desc'), limit(100));
+  }, [firestore]);
+  
   const { data: feedback } = useCollection<any>(feedbackQuery);
 
   const [summary, setSummary] = useState<any>(null);
@@ -652,26 +663,35 @@ function AdminDashboard({ menu }: { menu: MenuItem[] }) {
 
   return (
     <div className="p-4 animate-fade-in bg-[#1C0F0A] min-h-screen pb-24">
-      <div className="flex items-center justify-between mb-10 px-2 mt-4">
-        <h2 className="text-2xl font-black text-[#D4A853] flex items-center gap-3 tracking-tighter">
-          <Settings2 size={32} /> میز کار مدیر
-        </h2>
-        {newOrdersCount > 0 && (
-          <Badge className="bg-red-500 h-7 animate-pulse px-4 rounded-full font-black text-xs shadow-[0_0_15px_rgba(239,68,68,0.5)]">
-            {newOrdersCount} سفارش جدید
-          </Badge>
-        )}
+      <div className="grid grid-cols-2 gap-3 mb-8">
+        <div className="bg-[#2A1810] border border-[#3D2B24] p-4 rounded-2xl flex flex-col justify-between h-28">
+          <div className="flex justify-between items-start">
+            <LayoutDashboard size={18} className="text-[#D4A853]" />
+            {newOrdersCount > 0 && <span className="w-2 h-2 bg-red-500 rounded-full animate-ping"></span>}
+          </div>
+          <div>
+            <p className="text-[10px] text-[#A89B95] font-black uppercase">سفارشات جدید</p>
+            <p className="text-2xl font-black text-[#F5E6D3]">{newOrdersCount}</p>
+          </div>
+        </div>
+        <div className="bg-[#2A1810] border border-[#3D2B24] p-4 rounded-2xl flex flex-col justify-between h-28">
+          <TrendingUp size={18} className="text-[#D4A853]" />
+          <div>
+            <p className="text-[10px] text-[#A89B95] font-black uppercase">کل سفارشات امروز</p>
+            <p className="text-2xl font-black text-[#F5E6D3]">{orders?.length || 0}</p>
+          </div>
+        </div>
       </div>
 
       <Tabs defaultValue="orders" className="w-full">
-        <TabsList className="bg-[#2A1810] grid grid-cols-4 h-16 mb-10 rounded-2xl p-1.5 border border-[#3D2B24] shadow-2xl">
+        <TabsList className="bg-[#2A1810] grid grid-cols-4 h-16 mb-8 rounded-2xl p-1.5 border border-[#3D2B24] shadow-2xl">
           <TabsTrigger value="orders" className="rounded-xl data-[state=active]:bg-[#D4A853] data-[state=active]:text-[#1C0F0A] transition-all"><ListOrdered size={22} /></TabsTrigger>
           <TabsTrigger value="menu" className="rounded-xl data-[state=active]:bg-[#D4A853] data-[state=active]:text-[#1C0F0A] transition-all"><Coffee size={22} /></TabsTrigger>
           <TabsTrigger value="feedback" className="rounded-xl data-[state=active]:bg-[#D4A853] data-[state=active]:text-[#1C0F0A] transition-all"><MessageCircle size={22} /></TabsTrigger>
           <TabsTrigger value="qr" className="rounded-xl data-[state=active]:bg-[#D4A853] data-[state=active]:text-[#1C0F0A] transition-all"><QrCode size={22} /></TabsTrigger>
         </TabsList>
         
-        <TabsContent value="orders" className="space-y-6">
+        <TabsContent value="orders" className="space-y-4">
           {ordersLoading && (
             <div className="flex flex-col items-center justify-center py-20 opacity-30">
               <Loader2 className="animate-spin text-[#D4A853] mb-4" size={48} />
@@ -681,52 +701,56 @@ function AdminDashboard({ menu }: { menu: MenuItem[] }) {
           {!ordersLoading && (!orders || orders.length === 0) ? (
             <div className="text-center py-32 opacity-20">
                <ListOrdered size={64} className="mx-auto mb-6 stroke-1" />
-               <p className="font-bold">سفارشی یافت نشد</p>
+               <p className="font-bold text-sm">سفارشی یافت نشد</p>
             </div>
           ) : (
             orders?.map(order => (
               <Card key={order.id} className="bg-[#2A1810] border-[#3D2B24] rounded-3xl overflow-hidden shadow-2xl hover:border-[#D4A853]/20 transition-all">
-                <CardHeader className="p-5 flex flex-row items-center justify-between border-b border-[#3D2B24]">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-[#D4A853] text-[#1C0F0A] w-12 h-12 rounded-2xl flex items-center justify-center font-black shadow-lg text-lg border-2 border-[#1C0F0A]">
+                <CardHeader className="p-4 flex flex-row items-center justify-between border-b border-[#3D2B24]/50">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-[#D4A853] text-[#1C0F0A] w-10 h-10 rounded-xl flex items-center justify-center font-black shadow-lg text-sm border border-[#1C0F0A]/20">
                       {order.tableNumber === 'Takeout' ? '📦' : order.tableNumber}
                     </div>
                     <div className="flex flex-col">
-                       <span className="text-xs font-black text-[#F5E6D3]">میز {order.tableNumber}</span>
-                       <span className="text-[10px] text-[#A89B95] mt-1 font-bold">{new Date(order.timestamp).toLocaleTimeString('fa-IR')}</span>
+                       <span className="text-xs font-black text-[#F5E6D3]">
+                         {order.tableNumber === 'Takeout' ? 'سفارش بیرون‌بر' : `میز شماره ${order.tableNumber}`}
+                       </span>
+                       <span className="text-[10px] text-[#A89B95] flex items-center gap-1 font-bold">
+                         <Clock size={10} /> {new Date(order.timestamp).toLocaleTimeString('fa-IR')}
+                       </span>
                     </div>
                   </div>
                   <Badge className={cn(
-                    "rounded-xl px-3 py-1.5 font-black text-[10px] border-none shadow-md",
-                    order.status === 'NEW' ? 'bg-red-500' : order.status === 'PREPARING' ? 'bg-blue-500' : 'bg-green-600'
+                    "rounded-full px-3 py-1 font-black text-[9px] border-none shadow-sm",
+                    order.status === 'NEW' ? 'bg-red-500 text-white' : order.status === 'PREPARING' ? 'bg-blue-500 text-white' : 'bg-green-600 text-white'
                   )}>
                     {order.status === 'NEW' ? 'جدید' : order.status === 'PREPARING' ? 'درحال آماده‌سازی' : 'تحویل شده'}
                   </Badge>
                 </CardHeader>
-                <CardContent className="p-5">
-                  <ul className="text-xs space-y-3 mb-8">
+                <CardContent className="p-4">
+                  <ul className="text-xs space-y-2 mb-6">
                     {order.items.map((item, i) => (
-                      <li key={i} className="flex justify-between items-center bg-[#1C0F0A]/40 p-3 rounded-xl border border-[#3D2B24]">
+                      <li key={i} className="flex justify-between items-center bg-[#1C0F0A]/40 p-2.5 rounded-xl border border-[#3D2B24]">
                         <span className="font-bold text-[#F5E6D3]">{item.name}</span>
-                        <Badge variant="secondary" className="bg-[#3D2B24] text-[#D4A853] border-none px-3 font-black">{item.quantity} عدد</Badge>
+                        <span className="text-[#D4A853] font-black">{item.quantity} عدد</span>
                       </li>
                     ))}
                   </ul>
-                  <div className="flex gap-4">
+                  <div className="flex gap-3">
                     <Button 
                       size="sm" 
-                      variant="secondary"
+                      variant="outline"
                       onClick={() => handleUpdateStatus(order.id, 'PREPARING')} 
                       disabled={order.status !== 'NEW'} 
-                      className="flex-1 rounded-2xl h-12 font-black bg-[#3D2B24] text-[#F5E6D3] hover:bg-[#D4A853] hover:text-[#1C0F0A] transition-all disabled:opacity-30 border-none"
+                      className="flex-1 rounded-xl h-12 font-black border-[#3D2B24] text-[#A89B95] hover:bg-[#3D2B24] hover:text-[#D4A853] transition-all disabled:opacity-20"
                     >
-                      آماده‌سازی
+                      شروع آماده‌سازی
                     </Button>
                     <Button 
                       size="sm" 
                       onClick={() => handleUpdateStatus(order.id, 'DELIVERED')} 
                       disabled={order.status === 'DELIVERED'} 
-                      className="flex-1 rounded-2xl h-12 font-black bg-green-600 hover:bg-green-700 text-white transition-all shadow-lg border-none"
+                      className="flex-1 rounded-xl h-12 font-black bg-green-600 hover:bg-green-700 text-white transition-all shadow-lg border-none"
                     >
                       تکمیل و تحویل
                     </Button>
@@ -741,22 +765,20 @@ function AdminDashboard({ menu }: { menu: MenuItem[] }) {
            <AdminMenuManager menu={menu} />
         </TabsContent>
 
-        <TabsContent value="feedback" className="space-y-8">
+        <TabsContent value="feedback" className="space-y-6">
            <Button onClick={handleSummarizeFeedback} disabled={isLoadingSummary || !feedback} className="w-full bg-[#D4A853] text-[#1C0F0A] font-black h-16 rounded-2xl shadow-xl flex items-center justify-center gap-3 text-lg border-none active:scale-[0.98]">
              {isLoadingSummary ? <Loader2 className="animate-spin" /> : <Sparkles size={24} />}
              {isLoadingSummary ? 'در حال تحلیل داده‌ها...' : 'تحلیل هوشمند بازخوردها'}
            </Button>
            
            {summary && (
-             <div className="p-6 bg-gradient-to-br from-[#3D2B24] to-[#2A1810] rounded-[30px] border border-[#D4A853]/30 shadow-2xl animate-fade-in space-y-4">
-                <div className="flex items-center gap-2 text-[#D4A853] mb-1">
-                   <Sparkles size={20} />
-                   <h4 className="text-sm font-black uppercase tracking-widest">AI Feedback Analytics</h4>
+             <div className="p-5 bg-[#2A1810] rounded-3xl border border-[#D4A853]/30 shadow-2xl animate-fade-in space-y-4">
+                <div className="flex items-center gap-2 text-[#D4A853]">
+                   <Sparkles size={16} />
+                   <h4 className="text-[10px] font-black uppercase tracking-widest">AI Analytics</h4>
                 </div>
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-[#D4A853] text-[#1C0F0A] text-[9px] px-2 rounded-full font-black uppercase">{summary.overallSentiment}</Badge>
-                  </div>
+                  <Badge className="bg-[#D4A853] text-[#1C0F0A] text-[9px] px-2 rounded-full font-black uppercase">{summary.overallSentiment}</Badge>
                   <p className="text-xs leading-relaxed text-[#F5E6D3] italic">"{summary.summary}"</p>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {summary.commonThemes?.map((theme: string, i: number) => (
@@ -767,11 +789,11 @@ function AdminDashboard({ menu }: { menu: MenuItem[] }) {
              </div>
            )}
 
-           <div className="space-y-4">
+           <div className="space-y-3">
              {feedback?.map((f, i) => (
-               <div key={i} className="bg-[#2A1810] p-5 rounded-3xl border border-[#3D2B24] shadow-lg hover:border-[#D4A853]/20 transition-all">
-                 <div className="flex justify-between items-center mb-3">
-                    <div className="flex gap-1">{[...Array(5)].map((_,s)=> <Star key={s} size={14} fill={s < f.rating ? "#D4A853" : "transparent"} color={s < f.rating ? "#D4A853" : "#3D2B24"} />)}</div>
+               <div key={i} className="bg-[#2A1810] p-4 rounded-2xl border border-[#3D2B24] shadow-sm">
+                 <div className="flex justify-between items-center mb-2">
+                    <div className="flex gap-0.5">{[...Array(5)].map((_,s)=> <Star key={s} size={12} fill={s < f.rating ? "#D4A853" : "transparent"} color={s < f.rating ? "#D4A853" : "#3D2B24"} />)}</div>
                     <span className="text-[10px] text-[#A89B95] font-bold">{new Date(f.timestamp).toLocaleDateString('fa-IR')}</span>
                  </div>
                  <p className="text-xs text-[#F5E6D3] leading-relaxed font-medium">{f.comment}</p>
@@ -780,14 +802,14 @@ function AdminDashboard({ menu }: { menu: MenuItem[] }) {
            </div>
         </TabsContent>
 
-        <TabsContent value="qr" className="grid grid-cols-2 gap-6 pb-20">
-           {[...Array(6)].map((_, i) => (
-             <Card key={i} className="bg-white p-6 text-black text-center rounded-[40px] shadow-2xl border-none flex flex-col items-center">
-                <p className="text-sm font-black mb-4 tracking-tighter bg-black text-white px-4 py-1 rounded-full">میز شماره {i+1}</p>
-                <div className="bg-[#F5E6D3]/40 p-3 rounded-[32px] shadow-inner mb-4">
-                   <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${window.location.origin}?table=${i+1}`} alt="QR" className="w-full rounded-2xl" />
+        <TabsContent value="qr" className="grid grid-cols-2 gap-4 pb-20">
+           {[...Array(8)].map((_, i) => (
+             <Card key={i} className="bg-white p-4 text-black text-center rounded-3xl shadow-xl border-none flex flex-col items-center">
+                <p className="text-[10px] font-black mb-3 tracking-tighter bg-black text-white px-3 py-1 rounded-full">میز شماره {i+1}</p>
+                <div className="bg-[#F5E6D3]/40 p-2 rounded-2xl mb-3">
+                   <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${typeof window !== 'undefined' ? window.location.origin : ''}?table=${i+1}`} alt="QR" className="w-full rounded-xl" />
                 </div>
-                <p className="text-[9px] opacity-40 font-black uppercase tracking-widest">Cafe Didar Digital Menu</p>
+                <p className="text-[8px] opacity-40 font-black uppercase tracking-widest">Cafe Didar Digital Menu</p>
              </Card>
            ))}
         </TabsContent>
@@ -867,7 +889,7 @@ function AdminMenuManager({ menu }: { menu: MenuItem[] }) {
   };
 
   const handleDelete = (id: string) => {
-    if (!firestore || !confirm('آیا از حذف این آیتم اطمینان دارید؟ این عمل غیرقابل بازگشت است.')) return;
+    if (!firestore || !confirm('آیا از حذف این آیتم اطمینان دارید؟')) return;
     deleteDoc(doc(firestore, 'menu', id))
       .catch(async () => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `menu/${id}`, operation: 'delete' })));
   };
@@ -880,113 +902,110 @@ function AdminMenuManager({ menu }: { menu: MenuItem[] }) {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <Button 
         onClick={() => { 
           setIsAdding(true); 
           setEditingId(null); 
           setEditForm({ name: '', price: 0, description: '', category: 'HOT', emoji: '', image: '' }); 
         }} 
-        className="w-full bg-[#D4A853] text-[#1C0F0A] font-black h-16 rounded-2xl shadow-xl text-lg border-none active:scale-[0.98]"
+        className="w-full bg-[#D4A853] text-[#1C0F0A] font-black h-14 rounded-2xl shadow-xl border-none active:scale-[0.98]"
       >
-        افزودن آیتم جدید +
+        + افزودن آیتم جدید
       </Button>
       
       {(isAdding || editingId) && (
-        <Card className="bg-[#2A1810] p-8 space-y-6 border-[#D4A853]/30 shadow-2xl animate-slide-up rounded-[40px] relative">
-          <button onClick={() => { setIsAdding(false); setEditingId(null); }} className="absolute top-6 left-6 text-[#A89B95] hover:text-[#D4A853] transition-colors"><Minus /></button>
+        <Card className="bg-[#2A1810] p-6 space-y-5 border-[#D4A853]/30 shadow-2xl animate-slide-up rounded-3xl relative">
+          <button onClick={() => { setIsAdding(false); setEditingId(null); }} className="absolute top-4 left-4 text-[#A89B95] hover:text-red-500 transition-colors"><Minus /></button>
           
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="text-[10px] text-[#D4A853] ml-2 mb-2 block font-black uppercase tracking-widest">نام آیتم</label>
-              <Input placeholder="مثلاً لاته عسل" value={editForm.name || ''} onChange={e => setEditForm({...editForm, name: e.target.value})} className="bg-[#1C0F0A] border-[#3D2B24] h-14 rounded-2xl focus:border-[#D4A853] text-sm font-bold" />
+          <div className="grid grid-cols-4 gap-3">
+            <div className="col-span-3">
+              <label className="text-[9px] text-[#D4A853] ml-1 mb-1 block font-black uppercase tracking-widest">نام آیتم</label>
+              <Input placeholder="نام محصول" value={editForm.name || ''} onChange={e => setEditForm({...editForm, name: e.target.value})} className="bg-[#1C0F0A] border-[#3D2B24] h-12 rounded-xl focus:border-[#D4A853] text-xs font-bold" />
             </div>
-            <div className="w-28">
-              <label className="text-[10px] text-[#D4A853] ml-2 mb-2 block font-black uppercase tracking-widest">ایموجی</label>
-              <Input placeholder="☕" value={editForm.emoji || ''} onChange={e => setEditForm({...editForm, emoji: e.target.value})} className="bg-[#1C0F0A] border-[#3D2B24] h-14 text-center rounded-2xl focus:border-[#D4A853] text-2xl" />
+            <div className="col-span-1">
+              <label className="text-[9px] text-[#D4A853] ml-1 mb-1 block font-black uppercase tracking-widest">ایموجی</label>
+              <Input placeholder="☕" value={editForm.emoji || ''} onChange={e => setEditForm({...editForm, emoji: e.target.value})} className="bg-[#1C0F0A] border-[#3D2B24] h-12 text-center rounded-xl focus:border-[#D4A853] text-xl" />
             </div>
           </div>
           
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="text-[10px] text-[#D4A853] ml-2 mb-2 block font-black uppercase tracking-widest">دسته بندی</label>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[9px] text-[#D4A853] ml-1 mb-1 block font-black uppercase tracking-widest">دسته بندی</label>
               <Select value={editForm.category} onValueChange={(val: Category) => setEditForm({...editForm, category: val})}>
-                <SelectTrigger className="bg-[#1C0F0A] border-[#3D2B24] h-14 rounded-2xl font-bold">
-                  <SelectValue placeholder="انتخاب بخش" />
+                <SelectTrigger className="bg-[#1C0F0A] border-[#3D2B24] h-12 rounded-xl font-bold text-xs">
+                  <SelectValue placeholder="بخش" />
                 </SelectTrigger>
-                <SelectContent className="bg-[#2A1810] border-[#3D2B24] rounded-2xl">
+                <SelectContent className="bg-[#2A1810] border-[#3D2B24] rounded-xl">
                   <SelectItem value="HOT" className="font-bold">☕ بار گرم</SelectItem>
                   <SelectItem value="COLD" className="font-bold">🍹 بار سرد</SelectItem>
                   <SelectItem value="DESSERT" className="font-bold">🍰 دسر</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="w-40">
-              <label className="text-[10px] text-[#D4A853] ml-2 mb-2 block font-black uppercase tracking-widest">قیمت (تومان)</label>
-              <Input placeholder="150000" type="number" value={editForm.price || ''} onChange={e => setEditForm({...editForm, price: Number(e.target.value)})} className="bg-[#1C0F0A] border-[#3D2B24] h-14 rounded-2xl focus:border-[#D4A853] font-black" />
+            <div>
+              <label className="text-[9px] text-[#D4A853] ml-1 mb-1 block font-black uppercase tracking-widest">قیمت (تومان)</label>
+              <Input placeholder="قیمت" type="number" value={editForm.price || ''} onChange={e => setEditForm({...editForm, price: Number(e.target.value)})} className="bg-[#1C0F0A] border-[#3D2B24] h-12 rounded-xl focus:border-[#D4A853] font-black text-xs" />
             </div>
           </div>
 
           <div className="relative">
-            <label className="text-[10px] text-[#D4A853] ml-2 mb-2 block font-black uppercase tracking-widest">توضیحات</label>
-            <Textarea placeholder="ویژگی‌های منحصر به فرد این طعم..." value={editForm.description || ''} onChange={e => setEditForm({...editForm, description: e.target.value})} className="bg-[#1C0F0A] border-[#3D2B24] min-h-[120px] rounded-3xl p-5 focus:border-[#D4A853] text-sm leading-relaxed" />
+            <label className="text-[9px] text-[#D4A853] ml-1 mb-1 block font-black uppercase tracking-widest">توضیحات</label>
+            <Textarea placeholder="داستان این طعم را بنویسید..." value={editForm.description || ''} onChange={e => setEditForm({...editForm, description: e.target.value})} className="bg-[#1C0F0A] border-[#3D2B24] min-h-[100px] rounded-2xl p-4 focus:border-[#D4A853] text-xs leading-relaxed" />
             <button 
               onClick={handleAiDescribe}
               disabled={isAiLoading || !editForm.name}
-              className="absolute bottom-4 left-4 bg-[#D4A853]/15 hover:bg-[#D4A853]/30 text-[#D4A853] p-3 rounded-2xl transition-all disabled:opacity-30 shadow-lg border border-[#D4A853]/20"
-              title="تولید توضیحات با هوش مصنوعی"
+              className="absolute bottom-3 left-3 bg-[#D4A853]/10 hover:bg-[#D4A853]/20 text-[#D4A853] p-2.5 rounded-xl transition-all disabled:opacity-20 border border-[#D4A853]/20"
             >
-              {isAiLoading ? <Loader2 size={20} className="animate-spin" /> : <Sparkles size={20} />}
+              {isAiLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
             </button>
           </div>
 
-          <div className="space-y-4">
-            <label className="text-[10px] text-[#D4A853] ml-2 block font-black uppercase tracking-widest">تصویر محصول</label>
-            <div className="flex items-center gap-6">
-              <div className="w-24 h-24 bg-[#1C0F0A] rounded-3xl border border-[#3D2B24] flex items-center justify-center overflow-hidden shrink-0 shadow-2xl relative">
-                {editForm.image ? <img src={editForm.image} className="w-full h-full object-cover" alt="" /> : <ImageIcon size={32} className="text-[#3D2B24]" />}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+          <div className="space-y-3">
+            <label className="text-[9px] text-[#D4A853] ml-1 block font-black uppercase tracking-widest">تصویر محصول</label>
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-[#1C0F0A] rounded-2xl border border-[#3D2B24] flex items-center justify-center overflow-hidden shrink-0 shadow-inner relative">
+                {editForm.image ? <img src={editForm.image} className="w-full h-full object-cover" alt="" /> : <ImageIcon size={24} className="text-[#3D2B24]" />}
               </div>
-              <label className="flex-1 flex items-center justify-center gap-3 bg-[#1C0F0A]/50 hover:bg-[#1C0F0A] text-xs py-6 rounded-3xl cursor-pointer transition-all border-2 border-dashed border-[#3D2B24] hover:border-[#D4A853]/50">
-                <Upload size={22} className="text-[#D4A853]" /> 
-                <span className="font-black">آپلود تصویر اختصاصی</span>
+              <label className="flex-1 flex items-center justify-center gap-2 bg-[#1C0F0A]/40 hover:bg-[#1C0F0A] text-[10px] py-4 rounded-2xl cursor-pointer transition-all border-2 border-dashed border-[#3D2B24] hover:border-[#D4A853]/30">
+                <Upload size={18} className="text-[#D4A853]" /> 
+                <span className="font-black">انتخاب تصویر</span>
                 <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
               </label>
             </div>
           </div>
 
-          <div className="flex gap-4 pt-6">
-            <Button onClick={handleSave} className="flex-1 bg-gradient-to-r from-[#D4A853] to-[#B88A3E] text-[#1C0F0A] font-black h-16 rounded-2xl shadow-xl hover:from-[#E5B964] transition-all border-none text-lg">ذخیره آیتم</Button>
-            <Button onClick={() => { setIsAdding(false); setEditingId(null); }} variant="outline" className="flex-1 border-[#3D2B24] text-[#A89B95] h-16 rounded-2xl hover:bg-[#1C0F0A] font-bold">انصراف</Button>
+          <div className="flex gap-3 pt-4">
+            <Button onClick={handleSave} className="flex-1 bg-gradient-to-r from-[#D4A853] to-[#B88A3E] text-[#1C0F0A] font-black h-14 rounded-xl shadow-lg border-none">ذخیره آیتم</Button>
+            <Button onClick={() => { setIsAdding(false); setEditingId(null); }} variant="outline" className="flex-1 border-[#3D2B24] text-[#A89B95] h-14 rounded-xl hover:bg-[#1C0F0A] font-bold">انصراف</Button>
           </div>
         </Card>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {menu.length === 0 && (
-          <div className="text-center py-24 opacity-20 bg-[#2A1810]/50 rounded-[40px] border border-dashed border-[#3D2B24]">
-             <Coffee size={64} className="mx-auto mb-4 stroke-1" />
-             <p className="font-bold">هنوز آیتمی ثبت نشده است</p>
+          <div className="text-center py-20 opacity-20">
+             <Coffee size={48} className="mx-auto mb-4 stroke-1" />
+             <p className="text-sm font-bold">لیست منو خالی است</p>
           </div>
         )}
         {menu.map(item => (
-          <div key={item.id} className="bg-[#2A1810] p-4 rounded-3xl flex justify-between items-center border border-[#3D2B24] hover:border-[#D4A853]/30 transition-all shadow-xl group">
-            <div className="flex items-center gap-5">
-              <div className="w-16 h-16 rounded-2xl bg-[#1C0F0A] flex items-center justify-center text-2xl border border-[#D4A853]/15 overflow-hidden shadow-inner relative">
+          <div key={item.id} className="bg-[#2A1810] p-3 rounded-2xl flex justify-between items-center border border-[#3D2B24] hover:border-[#D4A853]/20 transition-all shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-xl bg-[#1C0F0A] flex items-center justify-center text-xl border border-[#D4A853]/10 overflow-hidden shadow-inner">
                 {item.image ? <img src={item.image} className="w-full h-full object-cover" alt="" /> : <span>{item.emoji}</span>}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
               </div>
               <div className="flex flex-col">
-                <span className="text-sm font-black text-[#F5E6D3]">{item.name}</span>
+                <span className="text-xs font-black text-[#F5E6D3]">{item.name}</span>
                 <div className="flex items-center gap-2 mt-1">
                   <Badge variant="outline" className="text-[8px] py-0 px-1.5 border-[#3D2B24] text-[#A89B95]">{item.category}</Badge>
-                  <span className="text-[10px] text-[#D4A853] font-black uppercase tracking-widest">{(item.price/1000).toLocaleString()} T</span>
+                  <span className="text-[9px] text-[#D4A853] font-black">{(item.price/1000).toLocaleString()} T</span>
                 </div>
               </div>
             </div>
-            <div className="flex gap-2">
-              <Button size="icon" variant="ghost" onClick={() => startEdit(item)} className="h-12 w-12 rounded-2xl text-[#A89B95] hover:text-[#D4A853] hover:bg-[#D4A853]/10 transition-all"><Pencil size={20} /></Button>
-              <Button size="icon" variant="ghost" onClick={() => handleDelete(item.id)} className="h-12 w-12 rounded-2xl text-red-500/40 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 size={20} /></Button>
+            <div className="flex gap-1">
+              <Button size="icon" variant="ghost" onClick={() => startEdit(item)} className="h-10 w-10 rounded-xl text-[#A89B95] hover:text-[#D4A853] hover:bg-[#D4A853]/10"><Pencil size={16} /></Button>
+              <Button size="icon" variant="ghost" onClick={() => handleDelete(item.id)} className="h-10 w-10 rounded-xl text-red-500/30 hover:text-red-500 hover:bg-red-500/10"><Trash2 size={16} /></Button>
             </div>
           </div>
         ))}
