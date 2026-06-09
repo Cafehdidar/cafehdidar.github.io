@@ -420,19 +420,22 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
   }, []);
 
   const handleDeleteOrder = async (order: any) => {
+    const deleteUrl = `${API_URL}?action=deleteOrder&rowIndex=${order.rowIndex}&timestamp=${Date.now()}`;
+    console.log('Calling delete URL:', deleteUrl);
+
     // Optimistic local update: remove immediately
     setRawOrders(prev => prev.filter(o => o.rowIndex !== order.rowIndex));
 
-    const params = new URLSearchParams({
-      action: 'deleteOrder',
-      rowIndex: order.rowIndex.toString(),
-      timestamp: Date.now().toString()
-    });
-
     try {
       // Send delete command to GAS via proxy
-      fetch(`${API_URL}?${params.toString()}`);
+      await fetch(deleteUrl);
+      
+      // Confirmation re-fetch after 2 seconds
+      setTimeout(() => {
+        fetchOrders();
+      }, 2000);
     } catch (err) {
+      console.error('Delete action failed:', err);
       // If error occurs, let polling restore the UI state if deletion failed
     }
   };
