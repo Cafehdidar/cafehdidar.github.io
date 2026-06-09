@@ -47,9 +47,6 @@ export default function CafeDidarApp() {
   const [gallery, setGallery] = useState<any[]>([]);
 
   useEffect(() => {
-    localStorage.setItem('test', 'hello');
-    console.log('test:', localStorage.getItem('test'));
-
     const storedMenu = localStorage.getItem('cafe_menu');
     setMenu(storedMenu ? JSON.parse(storedMenu) : DEFAULT_MENU);
 
@@ -62,6 +59,10 @@ export default function CafeDidarApp() {
     const params = new URLSearchParams(window.location.search);
     const table = params.get('table');
     if (table) setTableNumber(table);
+
+    // Initial Test
+    localStorage.setItem('test', 'hello');
+    console.log('test:', localStorage.getItem('test'));
   }, []);
 
   useEffect(() => {
@@ -169,7 +170,7 @@ export default function CafeDidarApp() {
         </div>
         <div className="flex flex-col items-center">
           <h1 onClick={handleLogoClick} className="text-[#D4A853] font-black text-2xl cursor-pointer leading-tight">دیدار</h1>
-          <span className="font-script text-[#D4A853] text-sm -mt-1 opacity-80">Cafe Didar</span>
+          <span className="font-script text-[#D4A853] text-sm -mt-1 opacity-80 uppercase tracking-widest">Cafe Didar</span>
         </div>
         <div className="w-[80px]">
           {tableNumber && <span className="text-[9px] bg-[#D4A853]/20 text-[#D4A853] px-2 py-0.5 rounded-full font-bold block text-center">میز {tableNumber}</span>}
@@ -223,9 +224,9 @@ export default function CafeDidarApp() {
 
 function NavButton({ active, icon, label, onClick }: { active: boolean, icon: React.ReactNode, label: string, onClick: () => void }) {
   return (
-    <button onClick={onClick} className={cn("flex flex-col items-center gap-1.5 transition-all duration-300", active ? 'text-[#D4A853] scale-110' : 'text-[#A89B95] scale-100')}>
+    <button onClick={onClick} className={cn("flex flex-col items-center gap-1.5 transition-all duration-500", active ? 'text-[#D4A853] scale-110' : 'text-[#A89B95] scale-100')}>
       {icon}
-      <span className="text-[10px] font-black uppercase">{label}</span>
+      <span className="text-[10px] font-black uppercase tracking-tighter">{label}</span>
     </button>
   );
 }
@@ -289,7 +290,7 @@ function FeedbackView({ onFeedbackSubmit }: any) {
 
   const handleSubmit = () => {
     if (rating === 0) return;
-    onFeedbackSubmit({ rating, comment, timestamp: new Date().toISOString(), id: Math.random().toString(36).substr(2, 9) });
+    onFeedbackSubmit({ rating, comment, timestamp: new Date().toLocaleString('fa-IR'), id: Math.random().toString(36).substr(2, 9) });
     setSubmitted(true);
   };
 
@@ -324,7 +325,7 @@ function GalleryView({ gallery }: any) {
       <div className="grid grid-cols-2 gap-3">
         {gallery.map((img: any) => (
           <div key={img.id} className="aspect-square bg-[#2A1810] rounded-2xl overflow-hidden border border-[#3D2B24] group relative">
-            <img src={img.url} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt="" />
+            <img src={img.url} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="" />
           </div>
         ))}
       </div>
@@ -339,8 +340,8 @@ function CartView({ cart, updateQuantity, removeFromCart, total, tableNumber, on
         <div className="absolute inset-0 bg-white/20 animate-ping-slow rounded-full"></div>
         <CheckCircle2 size={80} className="text-[#1C0F0A] relative z-10" />
       </div>
-      <h2 className="text-3xl font-black text-[#D4A853]">سفارش ثبت شد</h2>
-      <p className="text-[#A89B95] mt-2 text-center">سفارش شما {tableNumber ? `میز ${tableNumber}` : 'بیرون‌بر'} دریافت شد.</p>
+      <h2 className="text-3xl font-black text-[#D4A853] drop-shadow-lg">سفارش ثبت شد</h2>
+      <p className="text-[#A89B95] mt-2 text-center font-bold">سفارش شما {tableNumber ? `میز ${tableNumber}` : 'بیرون‌بر'} دریافت شد.</p>
     </div>
   );
 
@@ -400,7 +401,10 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
     try {
       const res = await fetch(GAS_URL);
       const data = await res.json();
-      if (Array.isArray(data)) setRawOrders(data);
+      if (Array.isArray(data)) {
+        // Ensure we preserve status exactly as returned by GAS
+        setRawOrders(data);
+      }
     } catch (err) {
       console.error('Failed to load orders from GAS:', err);
     }
@@ -420,6 +424,7 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
   }, [rawOrders]);
 
   const handleUpdateStatus = async (order: any, newStatus: string) => {
+    // Optimistic Update
     setRawOrders(prev => prev.map((o, idx) => (idx + 2 === order.rowIndex ? { ...o, status: newStatus } : o)));
 
     const params = new URLSearchParams({
@@ -430,6 +435,7 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
 
     try {
       await fetch(`${GAS_URL}?${params.toString()}`, { mode: 'no-cors' });
+      // Re-fetch after a short delay to sync with server's source of truth
       setTimeout(fetchOrders, 2000);
     } catch (err) {
       console.error('Failed to update status:', err);
@@ -440,7 +446,9 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
   const completedOrders = orders.filter(o => o.status === 'done');
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
+    // Single source of truth from Google Sheets
+    const normalizedStatus = status ? status.toLowerCase() : 'new';
+    switch (normalizedStatus) {
       case 'preparing':
         return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 flex items-center gap-1"><Clock size={12} /> در حال آماده‌سازی</Badge>;
       case 'done':
