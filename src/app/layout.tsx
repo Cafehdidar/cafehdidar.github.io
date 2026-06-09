@@ -3,8 +3,11 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'کافه دیدار | Cafe Didar',
+  title: 'کافه دیدار',
   description: 'سیستم سفارش آنلاین کافه دیدار - تجربه‌ای لوکس و متفاوت',
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({
