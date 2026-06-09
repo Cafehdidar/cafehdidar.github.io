@@ -33,7 +33,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { cn } from '@/lib/utils';
 import { DEFAULT_MENU } from '@/lib/constants';
 
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwOgN55QNFFSMphxutTlotm7XmEujT9xihv1UbB0XAOo2VvP-I5wN3Sh0XLu0P__K-ryQ/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxK6494lXr9fy0GE7ajb_NraFnXRRn0bObgO6JFZ4hJSYBCU7uuOYz12dRUBXgUxIl2YA/exec';
 
 export default function CafeDidarApp() {
   const [currentView, setCurrentView] = useState<View>('MENU');
@@ -548,7 +548,7 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
              {feedback.map((f: any) => (
                <div key={f.id} className="bg-[#2A1810] p-4 rounded-2xl border border-[#3D2B24]">
                  <div className="flex justify-between mb-2">
-                   <div className="flex">{[...Array(5)].map((_, i) => <Star key={i} size={10} fill={i < f.rating ? "#D4A853" : "transparent"} color="#D4A853" />)}</div>
+                   <div className="flex">{[...Array(5)].map((_, i) => <Star key={i} size={10} fill={f.rating > i ? "#D4A853" : "transparent"} color="#D4A853" />)}</div>
                    <span className="text-[10px] text-[#A89B95]">{f.timestamp}</span>
                  </div>
                  <p className="text-xs text-[#F5E6D3]">{f.comment}</p>
