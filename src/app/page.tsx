@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, MenuItem, OrderItem, Category } from '@/lib/types';
 import { 
   Coffee, 
@@ -28,6 +28,25 @@ import { cn } from '@/lib/utils';
 import { DEFAULT_MENU } from '@/lib/constants';
 
 const API_URL = '/api/orders';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4GrXsUkhk0mTnlkBLCBUXCJneSPnc7sYY3E0dhb-dI8Jvh7wKQYR8w3EdCYi9G4-hjw/exec';
+
+/**
+ * Helper to call the Google Apps Script via a hidden iframe to bypass CORS.
+ * This is used for "fire-and-forget" write operations.
+ */
+const callScript = (params: string) => {
+  if (typeof window === 'undefined') return;
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.src = GAS_URL + '?' + params;
+  document.body.appendChild(iframe);
+  // Remove the iframe after some time to clean up
+  setTimeout(() => {
+    if (document.body.contains(iframe)) {
+      document.body.removeChild(iframe);
+    }
+  }, 3000);
+};
 
 export default function CafeDidarApp() {
   const [currentView, setCurrentView] = useState<View>('MENU');
@@ -101,25 +120,22 @@ export default function CafeDidarApp() {
     const itemsStr = cart.map(i => `${i.name} (${i.quantity})`).join(', ');
     const table = tableNumber || 'Takeout';
     
+    // Construct params for write via iframe trick
     const params = new URLSearchParams({
       tableNumber: table,
       items: itemsStr,
       totalPrice: cartTotal.toString(),
-      status: 'جدید',
-      timestamp: Date.now().toString()
+      status: 'جدید'
     });
 
-    try {
-      await fetch(`${API_URL}?${params.toString()}`);
-      setIsSuccess(true);
-      setCart([]);
-      setTimeout(() => {
-        setIsSuccess(false);
-        setCurrentView('MENU');
-      }, 3500);
-    } catch (error) {
-      // Handle silently
-    }
+    callScript(params.toString());
+    
+    setIsSuccess(true);
+    setCart([]);
+    setTimeout(() => {
+      setIsSuccess(false);
+      setCurrentView('MENU');
+    }, 3500);
   };
 
   const handleLogoClick = () => {
@@ -395,10 +411,9 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
       if (Array.isArray(data)) {
         const mapped = data.map((o: any, idx: number) => ({
           ...o,
-          rowIndex: idx + 2
+          rowIndex: idx // 0-based index for script's deleteRow(rowIndex+2) logic
         }));
 
-        // Filter: skip any order where tableNumber AND items AND totalPrice are all empty or zero
         const filtered = mapped.filter((o: any) => {
           const tableEmpty = !o.tableNumber || o.tableNumber === 'undefined' || String(o.tableNumber).trim() === '' || o.tableNumber === '0';
           const itemsEmpty = !o.items || String(o.items).trim() === '';
@@ -420,24 +435,11 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
   }, []);
 
   const handleDeleteOrder = async (order: any) => {
-    const deleteUrl = `${API_URL}?action=deleteOrder&rowIndex=${order.rowIndex}&timestamp=${Date.now()}`;
-    console.log('Calling delete URL:', deleteUrl);
-
     // Optimistic local update: remove immediately
     setRawOrders(prev => prev.filter(o => o.rowIndex !== order.rowIndex));
-
-    try {
-      // Send delete command to GAS via proxy
-      await fetch(deleteUrl);
-      
-      // Confirmation re-fetch after 2 seconds
-      setTimeout(() => {
-        fetchOrders();
-      }, 2000);
-    } catch (err) {
-      console.error('Delete action failed:', err);
-      // If error occurs, let polling restore the UI state if deletion failed
-    }
+    
+    // Call script via iframe trick to avoid CORS on mutation
+    callScript(`action=deleteOrder&rowIndex=${order.rowIndex}`);
   };
 
   return (

@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4GrXsUkhk0mTnlkBLCBUXCJneSPnc7sYY3E0dhb-dI8Jvh7wKQYR8w3EdCYi9G4-hjw/exec';
 
+/**
+ * Proxy route for fetching orders. This bypasses browser CORS for READ operations (JSON fetch).
+ * For write operations, the frontend uses an iframe trick to avoid CORS preflight issues.
+ */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const params = searchParams.toString();
@@ -16,11 +20,10 @@ export async function GET(request: Request) {
     const text = await res.text();
     
     try {
-      // Attempt to parse JSON (e.g., when fetching the orders list)
+      // Attempt to parse JSON (usually for the GET fetch to list orders)
       return NextResponse.json(JSON.parse(text));
     } catch (e) {
-      // If parsing fails (e.g., for actions like deleteOrder that might return non-JSON),
-      // return a success response to keep the UI flow smooth.
+      // Fallback for non-JSON responses from the script
       return NextResponse.json({ success: true });
     }
   } catch (error) {
