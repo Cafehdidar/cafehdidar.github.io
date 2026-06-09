@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { View, MenuItem, OrderItem, Category } from '@/lib/types';
+import { View, MenuItem, OrderItem, Category, Feedback } from '@/lib/types';
 import { 
   Coffee, 
   MessageCircle, 
@@ -16,7 +16,9 @@ import {
   Upload,
   ChevronLeft,
   ListOrdered,
-  Check
+  Check,
+  QrCode,
+  Download
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,7 +58,7 @@ export default function CafeDidarApp() {
   const [isSuccess, setIsSuccess] = useState(false);
   
   const [menu, setMenu] = useState<MenuItem[]>([]);
-  const [feedback, setFeedback] = useState<any[]>([]);
+  const [feedback, setFeedback] = useState<Feedback[]>([]);
   const [gallery, setGallery] = useState<any[]>([]);
 
   useEffect(() => {
@@ -292,12 +294,19 @@ function MenuView({ menu, cart, addToCart, updateQuantity }: any) {
 
 function FeedbackView({ onFeedbackSubmit }: any) {
   const [rating, setRating] = useState(0);
+  const [name, setName] = useState('');
   const [comment, setComment] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = () => {
-    if (rating === 0) return;
-    onFeedbackSubmit({ rating, comment, timestamp: new Date().toLocaleString('fa-IR'), id: Math.random().toString(36).substr(2, 9) });
+    if (rating === 0 || !name.trim()) return;
+    onFeedbackSubmit({ 
+      name: name.trim(),
+      rating, 
+      comment, 
+      timestamp: new Date().toLocaleString('fa-IR'), 
+      id: Math.random().toString(36).substr(2, 9) 
+    });
     setSubmitted(true);
   };
 
@@ -312,15 +321,35 @@ function FeedbackView({ onFeedbackSubmit }: any) {
   return (
     <div className="p-6 animate-fade-in">
       <h2 className="text-3xl font-black mb-10 text-[#D4A853]">نظرسنجی</h2>
-      <div className="flex justify-center gap-4 mb-10">
-        {[1, 2, 3, 4, 5].map(s => (
-          <button key={s} onClick={() => setRating(s)} className="transition-transform active:scale-75">
-            <CheckCircle2 size={32} fill={s <= rating ? '#D4A853' : 'transparent'} color={s <= rating ? '#D4A853' : '#3D2B24'} />
-          </button>
-        ))}
+      
+      <div className="space-y-6 mb-8">
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-[#A89B95] mr-1">نام شما (الزامی)</label>
+          <Input 
+            value={name} 
+            onChange={e => setName(e.target.value)} 
+            placeholder="مثلاً: علی رضایی" 
+            className="bg-[#2A1810] border-[#3D2B24] h-12" 
+          />
+        </div>
+
+        <div className="flex justify-center gap-4 py-4">
+          {[1, 2, 3, 4, 5].map(s => (
+            <button key={s} onClick={() => setRating(s)} className="transition-transform active:scale-75">
+              <CheckCircle2 size={32} fill={s <= rating ? '#D4A853' : 'transparent'} color={s <= rating ? '#D4A853' : '#3D2B24'} />
+            </button>
+          ))}
+        </div>
       </div>
+
       <Textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="متن نظر شما..." className="bg-[#2A1810] border-[#3D2B24] min-h-[120px] mb-6" />
-      <Button onClick={handleSubmit} disabled={rating === 0} className="w-full bg-[#D4A853] text-[#1C0F0A] font-black h-14 shadow-lg shadow-[#D4A853]/20">ثبت بازخورد</Button>
+      <Button 
+        onClick={handleSubmit} 
+        disabled={rating === 0 || !name.trim()} 
+        className="w-full bg-[#D4A853] text-[#1C0F0A] font-black h-14 shadow-lg shadow-[#D4A853]/20"
+      >
+        ثبت بازخورد
+      </Button>
     </div>
   );
 }
@@ -452,11 +481,12 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-[#2A1810] grid grid-cols-4 h-14 mb-8">
+        <TabsList className="bg-[#2A1810] grid grid-cols-5 h-14 mb-8">
           <TabsTrigger value="orders"><ListOrdered size={18} /></TabsTrigger>
           <TabsTrigger value="menu"><Coffee size={18} /></TabsTrigger>
           <TabsTrigger value="feedback"><MessageCircle size={18} /></TabsTrigger>
           <TabsTrigger value="gallery"><ImageIcon size={18} /></TabsTrigger>
+          <TabsTrigger value="qrcodes"><QrCode size={18} /></TabsTrigger>
         </TabsList>
         
         <TabsContent value="orders" className="space-y-6">
@@ -497,11 +527,14 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
            <div className="space-y-3">
              {feedback.map((f: any) => (
                <div key={f.id} className="bg-[#2A1810] p-4 rounded-2xl border border-[#3D2B24]">
-                 <div className="flex justify-between mb-2">
-                   <div className="flex">{[...Array(5)].map((_, i) => <CheckCircle2 key={i} size={10} fill={f.rating > i ? "#D4A853" : "transparent"} color="#D4A853" />)}</div>
+                 <div className="flex justify-between items-start mb-2">
+                   <div>
+                     <p className="text-sm font-black text-[#F5E6D3]">{f.name}</p>
+                     <div className="flex mt-1">{[...Array(5)].map((_, i) => <CheckCircle2 key={i} size={10} fill={f.rating > i ? "#D4A853" : "transparent"} color="#D4A853" />)}</div>
+                   </div>
                    <span className="text-[10px] text-[#A89B95]">{f.timestamp}</span>
                  </div>
-                 <p className="text-xs text-[#F5E6D3]">{f.comment}</p>
+                 <p className="text-xs text-[#F5E6D3] mt-2 border-t border-[#3D2B24] pt-2">{f.comment}</p>
                </div>
              ))}
            </div>
@@ -510,7 +543,65 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
         <TabsContent value="gallery">
            <AdminGalleryManager gallery={gallery} setGallery={setGallery} />
         </TabsContent>
+
+        <TabsContent value="qrcodes">
+          <AdminQRCodeManager />
+        </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function AdminQRCodeManager() {
+  const [siteUrl, setSiteUrl] = useState('');
+
+  useEffect(() => {
+    setSiteUrl(window.location.origin);
+  }, []);
+
+  const downloadQRCode = async (tableNum: number) => {
+    const qrData = `${siteUrl}?table=${tableNum}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qrData)}`;
+    
+    try {
+      const response = await fetch(qrUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `table-${tableNum}.png`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Failed to download QR code', err);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-sm font-black text-[#D4A853] mb-4">کدهای QR میزها</h3>
+      <div className="grid grid-cols-2 gap-3">
+        {Array.from({ length: 15 }, (_, i) => i + 1).map(num => (
+          <div key={num} className="bg-[#2A1810] p-4 rounded-2xl border border-[#3D2B24] flex flex-col items-center gap-3">
+            <span className="text-xs font-black text-[#F5E6D3]">میز {num}</span>
+            <div className="bg-white p-2 rounded-xl">
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(siteUrl + '?table=' + num)}`} 
+                alt={`Table ${num}`}
+                className="w-32 h-32"
+              />
+            </div>
+            <Button 
+              onClick={() => downloadQRCode(num)}
+              className="w-full bg-[#3D2B24] hover:bg-[#D4A853] hover:text-[#1C0F0A] text-[#F5E6D3] text-[10px] font-black h-10 transition-colors"
+            >
+              <Download size={14} className="mr-2" /> دریافت QR
+            </Button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
