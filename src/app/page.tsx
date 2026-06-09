@@ -404,7 +404,15 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
       if (!res.ok) throw new Error('Network response was not ok');
       const data = await res.json();
       if (Array.isArray(data)) {
-        const filtered = data.filter((o: any) => {
+        // Map rowIndex first so we have the absolute position in Google Sheets
+        const mapped = data.map((o: any, idx: number) => ({
+          ...o,
+          rowIndex: idx + 2, // Row 1 is header
+          status: o.status || 'new' // Single source of truth from Sheets
+        }));
+
+        // Filter out empty rows
+        const filtered = mapped.filter((o: any) => {
           const isTableEmpty = !o.tableNumber || 
                               o.tableNumber === '0' || 
                               o.tableNumber === 'undefined' || 
@@ -427,15 +435,9 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
     return () => clearInterval(interval);
   }, []);
 
-  const orders = useMemo(() => {
-    return rawOrders.map((o, index) => ({
-      ...o,
-      rowIndex: index + 2,
-    }));
-  }, [rawOrders]);
-
   const handleUpdateStatus = async (order: any, newStatus: string) => {
-    setRawOrders(prev => prev.map((o, idx) => (idx + 2 === order.rowIndex ? { ...o, status: newStatus } : o)));
+    // Optimistic local update
+    setRawOrders(prev => prev.map((o) => (o.rowIndex === order.rowIndex ? { ...o, status: newStatus } : o)));
 
     const params = new URLSearchParams({
       action: 'updateStatus',
@@ -446,9 +448,12 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
 
     try {
       await fetch(`${API_URL}?${params.toString()}`);
-      setTimeout(fetchOrders, 2000);
+      // Refetch after 1 second to confirm the change was saved on server
+      setTimeout(fetchOrders, 1500);
     } catch (err) {
       console.error('Failed to update status:', err);
+      // Revert if error
+      fetchOrders();
     }
   };
 
@@ -465,8 +470,8 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
     }
   };
 
-  const activeOrders = orders.filter(o => o.status !== 'done');
-  const completedOrders = orders.filter(o => o.status === 'done');
+  const activeOrders = rawOrders.filter(o => o.status !== 'done');
+  const completedOrders = rawOrders.filter(o => o.status === 'done');
 
   const getStatusBadge = (status: string) => {
     const normalizedStatus = status ? status.toLowerCase() : 'new';
@@ -489,7 +494,7 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
         </div>
         <div className="bg-[#2A1810] p-4 rounded-2xl border border-[#3D2B24]">
           <p className="text-[10px] text-[#A89B95] font-black uppercase">کل امروز</p>
-          <p className="text-2xl font-black text-[#F5E6D3]">{orders.length}</p>
+          <p className="text-2xl font-black text-[#F5E6D3]">{rawOrders.length}</p>
         </div>
       </div>
 
