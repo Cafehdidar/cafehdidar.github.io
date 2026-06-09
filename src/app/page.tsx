@@ -16,21 +16,14 @@ import {
   Upload,
   ChevronLeft,
   ListOrdered,
-  Clock,
-  AlertCircle,
-  ChevronDown,
-  ChevronUp,
-  Star,
   Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { DEFAULT_MENU } from '@/lib/constants';
 
@@ -117,7 +110,6 @@ export default function CafeDidarApp() {
     });
 
     try {
-      // Proxy handles CORS and silent fail if needed
       await fetch(`${API_URL}?${params.toString()}`);
       setIsSuccess(true);
       setCart([]);
@@ -307,7 +299,7 @@ function FeedbackView({ onFeedbackSubmit }: any) {
       <div className="flex justify-center gap-4 mb-10">
         {[1, 2, 3, 4, 5].map(s => (
           <button key={s} onClick={() => setRating(s)} className="transition-transform active:scale-75">
-            <Star size={32} fill={s <= rating ? '#D4A853' : 'transparent'} color={s <= rating ? '#D4A853' : '#3D2B24'} />
+            <CheckCircle2 size={32} fill={s <= rating ? '#D4A853' : 'transparent'} color={s <= rating ? '#D4A853' : '#3D2B24'} />
           </button>
         ))}
       </div>
@@ -428,7 +420,7 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
   }, []);
 
   const handleDeleteOrder = async (order: any) => {
-    // Optimistic local update
+    // Optimistic local update: remove immediately
     setRawOrders(prev => prev.filter(o => o.rowIndex !== order.rowIndex));
 
     const params = new URLSearchParams({
@@ -438,11 +430,10 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
     });
 
     try {
-      await fetch(`${API_URL}?${params.toString()}`);
-      // Refresh to confirm deletion
-      setTimeout(fetchOrders, 1000);
+      // Send delete command to GAS via proxy
+      fetch(`${API_URL}?${params.toString()}`);
     } catch (err) {
-      fetchOrders();
+      // If error occurs, let polling restore the UI state if deletion failed
     }
   };
 
@@ -502,7 +493,7 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
              {feedback.map((f: any) => (
                <div key={f.id} className="bg-[#2A1810] p-4 rounded-2xl border border-[#3D2B24]">
                  <div className="flex justify-between mb-2">
-                   <div className="flex">{[...Array(5)].map((_, i) => <Star key={i} size={10} fill={f.rating > i ? "#D4A853" : "transparent"} color="#D4A853" />)}</div>
+                   <div className="flex">{[...Array(5)].map((_, i) => <CheckCircle2 key={i} size={10} fill={f.rating > i ? "#D4A853" : "transparent"} color="#D4A853" />)}</div>
                    <span className="text-[10px] text-[#A89B95]">{f.timestamp}</span>
                  </div>
                  <p className="text-xs text-[#F5E6D3]">{f.comment}</p>
