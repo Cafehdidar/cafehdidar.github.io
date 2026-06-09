@@ -33,7 +33,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { cn } from '@/lib/utils';
 import { DEFAULT_MENU } from '@/lib/constants';
 
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbx1DPqKB6NYDP4sB0gY-6YUNCfXw6lip5lc9mWuAvHM7GlCjfLtuZ7NDJ9f4qBnNtCGOA/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycb1DPqKB6NYDP4sB0gY-6YUNCfXw6lip5lc9mWuAvHM7GlCjfLtuZ7NDJ9f4qBnNtCGOA/exec';
 
 export default function CafeDidarApp() {
   const [currentView, setCurrentView] = useState<View>('MENU');
@@ -47,7 +47,7 @@ export default function CafeDidarApp() {
   const [gallery, setGallery] = useState<any[]>([]);
 
   useEffect(() => {
-    // Test requested by user
+    // Persistence test as requested
     localStorage.setItem('test', 'hello');
     console.log('test:', localStorage.getItem('test'));
 
@@ -401,8 +401,13 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
 
   const fetchOrders = async () => {
     try {
-      // Add timestamp to read request to prevent caching
+      // Add timestamp to read request to prevent caching and use basic fetch
       const res = await fetch(`${GAS_URL}?timestamp=${Date.now()}`);
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+
       const data = await res.json();
       if (Array.isArray(data)) {
         // Filter out empty/ghost orders: skip if both table and items are empty
@@ -449,8 +454,9 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
     });
 
     try {
-      // Use no-cors for mutation requests
+      // Use no-cors for mutation requests to avoid Failed to Fetch errors on writes
       await fetch(`${GAS_URL}?${params.toString()}`, { method: 'GET', mode: 'no-cors' });
+      // Short delay before refresh to allow GAS to finish writing
       setTimeout(fetchOrders, 2000);
     } catch (err) {
       console.error('Failed to update status:', err);
