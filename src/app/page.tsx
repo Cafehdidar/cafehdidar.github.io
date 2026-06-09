@@ -47,6 +47,10 @@ export default function CafeDidarApp() {
   const [gallery, setGallery] = useState<any[]>([]);
 
   useEffect(() => {
+    // Test requested by user
+    localStorage.setItem('test', 'hello');
+    console.log('test:', localStorage.getItem('test'));
+
     const storedMenu = localStorage.getItem('cafe_menu');
     setMenu(storedMenu ? JSON.parse(storedMenu) : DEFAULT_MENU);
 
@@ -59,9 +63,6 @@ export default function CafeDidarApp() {
     const params = new URLSearchParams(window.location.search);
     const table = params.get('table');
     if (table) setTableNumber(table);
-
-    localStorage.setItem('test', 'hello');
-    console.log('test:', localStorage.getItem('test'));
   }, []);
 
   useEffect(() => {
@@ -114,11 +115,13 @@ export default function CafeDidarApp() {
       tableNumber: table,
       items: itemsStr,
       totalPrice: cartTotal.toString(),
-      status: 'new'
+      status: 'new',
+      timestamp: Date.now().toString()
     });
 
     try {
-      await fetch(`${GAS_URL}?${params.toString()}`, { mode: 'no-cors' });
+      // Use no-cors to avoid Failed to fetch errors on mutations
+      await fetch(`${GAS_URL}?${params.toString()}`, { method: 'GET', mode: 'no-cors' });
       setIsSuccess(true);
       setCart([]);
       setTimeout(() => {
@@ -398,10 +401,23 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
 
   const fetchOrders = async () => {
     try {
-      const res = await fetch(GAS_URL);
+      // Add timestamp to read request to prevent caching
+      const res = await fetch(`${GAS_URL}?timestamp=${Date.now()}`);
       const data = await res.json();
       if (Array.isArray(data)) {
-        setRawOrders(data);
+        // Filter out empty/ghost orders: skip if both table and items are empty
+        const filtered = data.filter((o: any) => {
+          const isTableEmpty = !o.tableNumber || 
+                              o.tableNumber === '0' || 
+                              o.tableNumber === 'undefined' || 
+                              o.tableNumber === 'null' || 
+                              String(o.tableNumber).trim() === '';
+          const isItemsEmpty = !o.items || 
+                              (typeof o.items === 'string' && o.items.trim() === '');
+          
+          return !(isTableEmpty && isItemsEmpty);
+        });
+        setRawOrders(filtered);
       }
     } catch (err) {
       console.error('Failed to load orders from GAS:', err);
@@ -422,16 +438,19 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
   }, [rawOrders]);
 
   const handleUpdateStatus = async (order: any, newStatus: string) => {
+    // Optimistic update
     setRawOrders(prev => prev.map((o, idx) => (idx + 2 === order.rowIndex ? { ...o, status: newStatus } : o)));
 
     const params = new URLSearchParams({
       action: 'updateStatus',
       rowIndex: order.rowIndex.toString(),
-      status: newStatus
+      status: newStatus,
+      timestamp: Date.now().toString()
     });
 
     try {
-      await fetch(`${GAS_URL}?${params.toString()}`, { mode: 'no-cors' });
+      // Use no-cors for mutation requests
+      await fetch(`${GAS_URL}?${params.toString()}`, { method: 'GET', mode: 'no-cors' });
       setTimeout(fetchOrders, 2000);
     } catch (err) {
       console.error('Failed to update status:', err);
@@ -439,9 +458,13 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
   };
 
   const handleClearOldOrders = async () => {
-    const params = new URLSearchParams({ action: 'clearOldOrders' });
+    const params = new URLSearchParams({ 
+      action: 'clearOldOrders',
+      timestamp: Date.now().toString()
+    });
     try {
-      await fetch(`${GAS_URL}?${params.toString()}`, { mode: 'no-cors' });
+      // Use no-cors for mutation requests
+      await fetch(`${GAS_URL}?${params.toString()}`, { method: 'GET', mode: 'no-cors' });
       setTimeout(fetchOrders, 1000);
     } catch (err) {
       console.error('Failed to clear old orders:', err);
