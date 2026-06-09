@@ -33,7 +33,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { cn } from '@/lib/utils';
 import { DEFAULT_MENU } from '@/lib/constants';
 
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbxK6494lXr9fy0GE7ajb_NraFnXRRn0bObgO6JFZ4hJSYBCU7uuOYz12dRUBXgUxIl2YA/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbx1DPqKB6NYDP4sB0gY-6YUNCfXw6lip5lc9mWuAvHM7GlCjfLtuZ7NDJ9f4qBnNtCGOA/exec';
 
 export default function CafeDidarApp() {
   const [currentView, setCurrentView] = useState<View>('MENU');
@@ -60,7 +60,6 @@ export default function CafeDidarApp() {
     const table = params.get('table');
     if (table) setTableNumber(table);
 
-    // Initial Test
     localStorage.setItem('test', 'hello');
     console.log('test:', localStorage.getItem('test'));
   }, []);
@@ -402,7 +401,6 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
       const res = await fetch(GAS_URL);
       const data = await res.json();
       if (Array.isArray(data)) {
-        // Ensure we preserve status exactly as returned by GAS
         setRawOrders(data);
       }
     } catch (err) {
@@ -424,7 +422,6 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
   }, [rawOrders]);
 
   const handleUpdateStatus = async (order: any, newStatus: string) => {
-    // Optimistic Update
     setRawOrders(prev => prev.map((o, idx) => (idx + 2 === order.rowIndex ? { ...o, status: newStatus } : o)));
 
     const params = new URLSearchParams({
@@ -435,10 +432,19 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
 
     try {
       await fetch(`${GAS_URL}?${params.toString()}`, { mode: 'no-cors' });
-      // Re-fetch after a short delay to sync with server's source of truth
       setTimeout(fetchOrders, 2000);
     } catch (err) {
       console.error('Failed to update status:', err);
+    }
+  };
+
+  const handleClearOldOrders = async () => {
+    const params = new URLSearchParams({ action: 'clearOldOrders' });
+    try {
+      await fetch(`${GAS_URL}?${params.toString()}`, { mode: 'no-cors' });
+      setTimeout(fetchOrders, 1000);
+    } catch (err) {
+      console.error('Failed to clear old orders:', err);
     }
   };
 
@@ -446,7 +452,6 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
   const completedOrders = orders.filter(o => o.status === 'done');
 
   const getStatusBadge = (status: string) => {
-    // Single source of truth from Google Sheets
     const normalizedStatus = status ? status.toLowerCase() : 'new';
     switch (normalizedStatus) {
       case 'preparing':
@@ -480,6 +485,16 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
         </TabsList>
         
         <TabsContent value="orders" className="space-y-6">
+          <div className="flex justify-end mb-2">
+            <Button 
+              variant="outline" 
+              onClick={handleClearOldOrders}
+              className="text-[10px] font-black border-red-500/20 text-red-500 hover:bg-red-500/10 h-8 flex items-center gap-1"
+            >
+              🗑️ پاک کردن سفارش‌های قدیمی
+            </Button>
+          </div>
+
           <div className="space-y-4">
             {activeOrders.length === 0 && (
               <p className="text-center text-[#A89B95] py-10 opacity-50">هیچ سفارش جاری وجود ندارد</p>
