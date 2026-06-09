@@ -33,7 +33,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { cn } from '@/lib/utils';
 import { DEFAULT_MENU } from '@/lib/constants';
 
-const GAS_URL = 'https://script.google.com/macros/s/AKfycb1DPqKB6NYDP4sB0gY-6YUNCfXw6lip5lc9mWuAvHM7GlCjfLtuZ7NDJ9f4qBnNtCGOA/exec';
+const API_URL = '/api/orders';
 
 export default function CafeDidarApp() {
   const [currentView, setCurrentView] = useState<View>('MENU');
@@ -47,7 +47,7 @@ export default function CafeDidarApp() {
   const [gallery, setGallery] = useState<any[]>([]);
 
   useEffect(() => {
-    // Persistence test as requested
+    // Persistence test
     localStorage.setItem('test', 'hello');
     console.log('test:', localStorage.getItem('test'));
 
@@ -120,8 +120,7 @@ export default function CafeDidarApp() {
     });
 
     try {
-      // Use no-cors to avoid Failed to fetch errors on mutations
-      await fetch(`${GAS_URL}?${params.toString()}`, { method: 'GET', mode: 'no-cors' });
+      await fetch(`${API_URL}?${params.toString()}`);
       setIsSuccess(true);
       setCart([]);
       setTimeout(() => {
@@ -233,6 +232,14 @@ function NavButton({ active, icon, label, onClick }: { active: boolean, icon: Re
   );
 }
 
+function CategoryTab({ active, label, onClick }: any) {
+  return (
+    <button onClick={onClick} className={cn("flex-1 py-3 text-[11px] font-black rounded-xl m-1 transition-all", active ? 'bg-[#D4A853] text-[#1C0F0A]' : 'text-[#A89B95]')}>
+      {label}
+    </button>
+  );
+}
+
 function MenuView({ menu, cart, addToCart, updateQuantity }: any) {
   const [activeCategory, setActiveCategory] = useState<Category>('HOT');
   const filteredItems = menu.filter((i: any) => i.category === activeCategory);
@@ -274,14 +281,6 @@ function MenuView({ menu, cart, addToCart, updateQuantity }: any) {
         })}
       </div>
     </div>
-  );
-}
-
-function CategoryTab({ active, label, onClick }: any) {
-  return (
-    <button onClick={onClick} className={cn("flex-1 py-3 text-[11px] font-black rounded-xl m-1 transition-all", active ? 'bg-[#D4A853] text-[#1C0F0A]' : 'text-[#A89B95]')}>
-      {label}
-    </button>
   );
 }
 
@@ -401,16 +400,10 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
 
   const fetchOrders = async () => {
     try {
-      // Add timestamp to read request to prevent caching and use basic fetch
-      const res = await fetch(`${GAS_URL}?timestamp=${Date.now()}`);
-      
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-
+      const res = await fetch(`${API_URL}?timestamp=${Date.now()}`);
+      if (!res.ok) throw new Error('Network response was not ok');
       const data = await res.json();
       if (Array.isArray(data)) {
-        // Filter out empty/ghost orders: skip if both table and items are empty
         const filtered = data.filter((o: any) => {
           const isTableEmpty = !o.tableNumber || 
                               o.tableNumber === '0' || 
@@ -419,13 +412,12 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
                               String(o.tableNumber).trim() === '';
           const isItemsEmpty = !o.items || 
                               (typeof o.items === 'string' && o.items.trim() === '');
-          
           return !(isTableEmpty && isItemsEmpty);
         });
         setRawOrders(filtered);
       }
     } catch (err) {
-      console.error('Failed to load orders from GAS:', err);
+      console.error('Failed to load orders via proxy:', err);
     }
   };
 
@@ -443,7 +435,6 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
   }, [rawOrders]);
 
   const handleUpdateStatus = async (order: any, newStatus: string) => {
-    // Optimistic update
     setRawOrders(prev => prev.map((o, idx) => (idx + 2 === order.rowIndex ? { ...o, status: newStatus } : o)));
 
     const params = new URLSearchParams({
@@ -454,9 +445,7 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
     });
 
     try {
-      // Use no-cors for mutation requests to avoid Failed to Fetch errors on writes
-      await fetch(`${GAS_URL}?${params.toString()}`, { method: 'GET', mode: 'no-cors' });
-      // Short delay before refresh to allow GAS to finish writing
+      await fetch(`${API_URL}?${params.toString()}`);
       setTimeout(fetchOrders, 2000);
     } catch (err) {
       console.error('Failed to update status:', err);
@@ -469,8 +458,7 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
       timestamp: Date.now().toString()
     });
     try {
-      // Use no-cors for mutation requests
-      await fetch(`${GAS_URL}?${params.toString()}`, { method: 'GET', mode: 'no-cors' });
+      await fetch(`${API_URL}?${params.toString()}`);
       setTimeout(fetchOrders, 1000);
     } catch (err) {
       console.error('Failed to clear old orders:', err);
