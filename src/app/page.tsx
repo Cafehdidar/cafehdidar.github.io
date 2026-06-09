@@ -47,10 +47,6 @@ export default function CafeDidarApp() {
   const [gallery, setGallery] = useState<any[]>([]);
 
   useEffect(() => {
-    // Persistence test
-    localStorage.setItem('test', 'hello');
-    console.log('test:', localStorage.getItem('test'));
-
     const storedMenu = localStorage.getItem('cafe_menu');
     setMenu(storedMenu ? JSON.parse(storedMenu) : DEFAULT_MENU);
 
@@ -115,11 +111,12 @@ export default function CafeDidarApp() {
       tableNumber: table,
       items: itemsStr,
       totalPrice: cartTotal.toString(),
-      status: 'new',
+      status: 'جدید',
       timestamp: Date.now().toString()
     });
 
     try {
+      // Proxy handles CORS and silent fail if needed
       await fetch(`${API_URL}?${params.toString()}`);
       setIsSuccess(true);
       setCart([]);
@@ -128,7 +125,7 @@ export default function CafeDidarApp() {
         setCurrentView('MENU');
       }, 3500);
     } catch (error) {
-      console.error('Failed to submit order:', error);
+      // Handle silently as requested
     }
   };
 
@@ -404,39 +401,36 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
       if (!res.ok) throw new Error('Network response was not ok');
       const data = await res.json();
       if (Array.isArray(data)) {
-        // Map rowIndex first so we have the absolute position in Google Sheets
         const mapped = data.map((o: any, idx: number) => ({
           ...o,
-          rowIndex: idx + 2, // Row 1 is header
-          status: o.status || 'new' // Single source of truth from Sheets
+          rowIndex: idx + 2,
+          // Source of Truth: use status exactly as it comes from sheets. Only default if truly empty.
+          status: o.status || 'جدید'
         }));
 
-        // Filter out empty rows
+        // Filter: skip any order where tableNumber AND items AND totalPrice are all empty or zero
         const filtered = mapped.filter((o: any) => {
-          const isTableEmpty = !o.tableNumber || 
-                              o.tableNumber === '0' || 
-                              o.tableNumber === 'undefined' || 
-                              o.tableNumber === 'null' || 
-                              String(o.tableNumber).trim() === '';
-          const isItemsEmpty = !o.items || 
-                              (typeof o.items === 'string' && o.items.trim() === '');
-          return !(isTableEmpty && isItemsEmpty);
+          const tableEmpty = !o.tableNumber || o.tableNumber === 'undefined' || String(o.tableNumber).trim() === '' || o.tableNumber === '0';
+          const itemsEmpty = !o.items || String(o.items).trim() === '';
+          const priceEmpty = !o.totalPrice || o.totalPrice === '0' || o.totalPrice === 0;
+          
+          return !(tableEmpty && itemsEmpty && priceEmpty);
         });
         setRawOrders(filtered);
       }
     } catch (err) {
-      console.error('Failed to load orders via proxy:', err);
+      // Handle silently as requested
     }
   };
 
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 10000);
+    const interval = setInterval(fetchOrders, 10000); // 10s poll
     return () => clearInterval(interval);
   }, []);
 
   const handleUpdateStatus = async (order: any, newStatus: string) => {
-    // Optimistic local update
+    // Optimistic local update for zero-latency feel
     setRawOrders(prev => prev.map((o) => (o.rowIndex === order.rowIndex ? { ...o, status: newStatus } : o)));
 
     const params = new URLSearchParams({
@@ -448,11 +442,9 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
 
     try {
       await fetch(`${API_URL}?${params.toString()}`);
-      // Refetch after 1 second to confirm the change was saved on server
-      setTimeout(fetchOrders, 1500);
+      // Wait 2 seconds then re-fetch as requested to verify server state
+      setTimeout(fetchOrders, 2000);
     } catch (err) {
-      console.error('Failed to update status:', err);
-      // Revert if error
       fetchOrders();
     }
   };
@@ -466,22 +458,21 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
       await fetch(`${API_URL}?${params.toString()}`);
       setTimeout(fetchOrders, 1000);
     } catch (err) {
-      console.error('Failed to clear old orders:', err);
+      // Silent error
     }
   };
 
-  const activeOrders = rawOrders.filter(o => o.status !== 'done');
-  const completedOrders = rawOrders.filter(o => o.status === 'done');
+  const activeOrders = rawOrders.filter(o => o.status !== 'done' && o.status !== 'تحویل داده شد');
+  const completedOrders = rawOrders.filter(o => o.status === 'done' || o.status === 'تحویل داده شد');
 
   const getStatusBadge = (status: string) => {
-    const normalizedStatus = status ? status.toLowerCase() : 'new';
-    switch (normalizedStatus) {
-      case 'preparing':
-        return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 flex items-center gap-1"><Clock size={12} /> در حال آماده‌سازی</Badge>;
-      case 'done':
-        return <Badge className="bg-green-500/10 text-green-500 border-green-500/20 flex items-center gap-1"><CheckCircle2 size={12} /> تحویل داده شد</Badge>;
-      default:
-        return <Badge className="bg-red-500/10 text-red-500 border-red-500/20 flex items-center gap-1"><AlertCircle size={12} /> جدید</Badge>;
+    const s = String(status).toLowerCase();
+    if (s === 'preparing' || status === 'در حال آماده‌سازی') {
+      return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 flex items-center gap-1"><Clock size={12} /> در حال آماده‌سازی</Badge>;
+    } else if (s === 'done' || status === 'تحویل داده شد') {
+      return <Badge className="bg-green-500/10 text-green-500 border-green-500/20 flex items-center gap-1"><CheckCircle2 size={12} /> تحویل داده شد</Badge>;
+    } else {
+      return <Badge className="bg-red-500/10 text-red-500 border-red-500/20 flex items-center gap-1"><AlertCircle size={12} /> جدید</Badge>;
     }
   };
 
@@ -539,10 +530,10 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
                     <Button 
                       variant="outline" 
                       onClick={() => handleUpdateStatus(order, 'preparing')}
-                      disabled={order.status === 'preparing'}
+                      disabled={order.status === 'preparing' || order.status === 'در حال آماده‌سازی'}
                       className={cn(
                         "text-[10px] font-black flex items-center gap-2 h-10 border-[#3D2B24]",
-                        order.status === 'preparing' ? "opacity-50 pointer-events-none" : "hover:bg-yellow-500/10 text-yellow-500"
+                        (order.status === 'preparing' || order.status === 'در حال آماده‌سازی') ? "opacity-50 pointer-events-none" : "hover:bg-yellow-500/10 text-yellow-500"
                       )}
                     >
                       <Clock size={14} /> شروع آماده‌سازی
