@@ -20,7 +20,8 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
-  Star
+  Star,
+  Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -125,7 +126,7 @@ export default function CafeDidarApp() {
         setCurrentView('MENU');
       }, 3500);
     } catch (error) {
-      // Handle silently as requested
+      // Handle silently
     }
   };
 
@@ -393,7 +394,6 @@ function AdminLogin({ onLoginSuccess }: any) {
 function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
   const [rawOrders, setRawOrders] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('orders');
-  const [isCompletedExpanded, setIsCompletedExpanded] = useState(false);
 
   const fetchOrders = async () => {
     try {
@@ -403,9 +403,7 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
       if (Array.isArray(data)) {
         const mapped = data.map((o: any, idx: number) => ({
           ...o,
-          rowIndex: idx + 2,
-          // Source of Truth: use status exactly as it comes from sheets. Only default if truly empty.
-          status: o.status || 'جدید'
+          rowIndex: idx + 2
         }));
 
         // Filter: skip any order where tableNumber AND items AND totalPrice are all empty or zero
@@ -419,7 +417,7 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
         setRawOrders(filtered);
       }
     } catch (err) {
-      // Handle silently as requested
+      // Handle silently
     }
   };
 
@@ -429,63 +427,31 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
     return () => clearInterval(interval);
   }, []);
 
-  const handleUpdateStatus = async (order: any, newStatus: string) => {
-    // Optimistic local update for zero-latency feel
-    setRawOrders(prev => prev.map((o) => (o.rowIndex === order.rowIndex ? { ...o, status: newStatus } : o)));
+  const handleDeleteOrder = async (order: any) => {
+    // Optimistic local update
+    setRawOrders(prev => prev.filter(o => o.rowIndex !== order.rowIndex));
 
     const params = new URLSearchParams({
-      action: 'updateStatus',
+      action: 'deleteOrder',
       rowIndex: order.rowIndex.toString(),
-      status: newStatus,
       timestamp: Date.now().toString()
     });
 
     try {
       await fetch(`${API_URL}?${params.toString()}`);
-      // Wait 2 seconds then re-fetch as requested to verify server state
-      setTimeout(fetchOrders, 2000);
+      // Refresh to confirm deletion
+      setTimeout(fetchOrders, 1000);
     } catch (err) {
       fetchOrders();
     }
   };
 
-  const handleClearOldOrders = async () => {
-    const params = new URLSearchParams({ 
-      action: 'clearOldOrders',
-      timestamp: Date.now().toString()
-    });
-    try {
-      await fetch(`${API_URL}?${params.toString()}`);
-      setTimeout(fetchOrders, 1000);
-    } catch (err) {
-      // Silent error
-    }
-  };
-
-  const activeOrders = rawOrders.filter(o => o.status !== 'done' && o.status !== 'تحویل داده شد');
-  const completedOrders = rawOrders.filter(o => o.status === 'done' || o.status === 'تحویل داده شد');
-
-  const getStatusBadge = (status: string) => {
-    const s = String(status).toLowerCase();
-    if (s === 'preparing' || status === 'در حال آماده‌سازی') {
-      return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 flex items-center gap-1"><Clock size={12} /> در حال آماده‌سازی</Badge>;
-    } else if (s === 'done' || status === 'تحویل داده شد') {
-      return <Badge className="bg-green-500/10 text-green-500 border-green-500/20 flex items-center gap-1"><CheckCircle2 size={12} /> تحویل داده شد</Badge>;
-    } else {
-      return <Badge className="bg-red-500/10 text-red-500 border-red-500/20 flex items-center gap-1"><AlertCircle size={12} /> جدید</Badge>;
-    }
-  };
-
   return (
     <div className="p-4 bg-[#1C0F0A] min-h-screen pb-20 animate-fade-in">
-      <div className="grid grid-cols-2 gap-3 mb-8">
+      <div className="grid grid-cols-1 gap-3 mb-8">
         <div className="bg-[#2A1810] p-4 rounded-2xl border border-[#3D2B24]">
-          <p className="text-[10px] text-[#A89B95] font-black uppercase">سفارشات جاری</p>
-          <p className="text-2xl font-black text-[#D4A853]">{activeOrders.length}</p>
-        </div>
-        <div className="bg-[#2A1810] p-4 rounded-2xl border border-[#3D2B24]">
-          <p className="text-[10px] text-[#A89B95] font-black uppercase">کل امروز</p>
-          <p className="text-2xl font-black text-[#F5E6D3]">{rawOrders.length}</p>
+          <p className="text-[10px] text-[#A89B95] font-black uppercase">تعداد سفارشات</p>
+          <p className="text-2xl font-black text-[#D4A853]">{rawOrders.length}</p>
         </div>
       </div>
 
@@ -498,81 +464,33 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
         </TabsList>
         
         <TabsContent value="orders" className="space-y-6">
-          <div className="flex justify-end mb-2">
-            <Button 
-              variant="outline" 
-              onClick={handleClearOldOrders}
-              className="text-[10px] font-black border-red-500/20 text-red-500 hover:bg-red-500/10 h-8 flex items-center gap-1"
-            >
-              🗑️ پاک کردن سفارش‌های قدیمی
-            </Button>
-          </div>
-
           <div className="space-y-4">
-            {activeOrders.length === 0 && (
-              <p className="text-center text-[#A89B95] py-10 opacity-50">هیچ سفارش جاری وجود ندارد</p>
+            {rawOrders.length === 0 && (
+              <p className="text-center text-[#A89B95] py-10 opacity-50">هیچ سفارشی وجود ندارد</p>
             )}
-            {activeOrders.map((order) => (
+            {rawOrders.map((order) => (
               <Card key={order.rowIndex} className="bg-[#2A1810] border-[#3D2B24] overflow-hidden">
                 <CardHeader className="p-4 flex flex-row items-center justify-between border-b border-[#3D2B24]/50">
                   <div className="flex flex-col">
                     <span className="text-xs font-black text-[#F5E6D3]">{order.tableNumber === 'Takeout' ? '📦 بیرون‌بر' : `میز ${order.tableNumber}`}</span>
                     <span className="text-[10px] text-[#A89B95]">{order.timestamp}</span>
                   </div>
-                  {getStatusBadge(order.status)}
                 </CardHeader>
                 <CardContent className="p-4 space-y-4">
                   <p className="text-sm text-[#F5E6D3] leading-relaxed">{order.items}</p>
                   <div className="flex items-center justify-between">
                     <span className="text-lg font-black text-[#D4A853]">{(Number(order.totalPrice) / 1000).toLocaleString()} تومان</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => handleUpdateStatus(order, 'preparing')}
-                      disabled={order.status === 'preparing' || order.status === 'در حال آماده‌سازی'}
-                      className={cn(
-                        "text-[10px] font-black flex items-center gap-2 h-10 border-[#3D2B24]",
-                        (order.status === 'preparing' || order.status === 'در حال آماده‌سازی') ? "opacity-50 pointer-events-none" : "hover:bg-yellow-500/10 text-yellow-500"
-                      )}
-                    >
-                      <Clock size={14} /> شروع آماده‌سازی
-                    </Button>
-                    <Button 
-                      onClick={() => handleUpdateStatus(order, 'done')}
-                      className="bg-green-600 hover:bg-green-700 text-white text-[10px] font-black flex items-center gap-2 h-10"
-                    >
-                      <CheckCircle2 size={14} /> تحویل داده شد
-                    </Button>
-                  </div>
+                  <Button 
+                    onClick={() => handleDeleteOrder(order)}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white text-[10px] font-black flex items-center gap-2 h-12"
+                  >
+                    <Check size={16} /> ✓ انجام شد
+                  </Button>
                 </CardContent>
               </Card>
             ))}
           </div>
-
-          {completedOrders.length > 0 && (
-            <Collapsible open={isCompletedExpanded} onOpenChange={setIsCompletedExpanded} className="mt-10 border-t border-[#3D2B24] pt-6">
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full flex items-center justify-between text-[#A89B95] font-black hover:text-[#D4A853]">
-                  <span>سفارش‌های تحویل داده شده ({completedOrders.length})</span>
-                  {isCompletedExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-4 mt-4">
-                {completedOrders.map((order) => (
-                  <Card key={order.rowIndex} className="bg-[#2A1810]/40 border-[#3D2B24] opacity-60">
-                    <CardHeader className="p-3 flex flex-row items-center justify-between">
-                      <span className="text-[10px] font-bold text-[#A89B95]">{order.tableNumber === 'Takeout' ? '📦 بیرون‌بر' : `میز ${order.tableNumber}`}</span>
-                      {getStatusBadge(order.status)}
-                    </CardHeader>
-                    <CardContent className="p-3 pt-0">
-                      <p className="text-[11px] text-[#A89B95]">{order.items}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </CollapsibleContent>
-            </Collapsible>
-          )}
         </TabsContent>
 
         <TabsContent value="menu">

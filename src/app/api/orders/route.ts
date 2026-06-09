@@ -4,7 +4,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const params = searchParams.toString();
-    // Updated GAS URL as requested
+    // Latest GAS URL provided
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbx1DPqKB6NYDP4sB0gY-6YUNCfXw6lip5lc9mWuAvHM7GlCjfLtuZ7NDJ9f4qBnNtCGOA/exec';
     const url = params ? GAS_URL + '?' + params : GAS_URL;
     
@@ -15,6 +15,11 @@ export async function GET(request: Request) {
       },
       cache: 'no-store', // Prevent stale data on poll
     });
+
+    // For delete/update actions with no-cors expectations or non-json returns from GAS
+    if (searchParams.get('action')) {
+      return NextResponse.json({ success: true, message: 'Action processed' });
+    }
 
     const data = await res.json();
     return NextResponse.json(data);
