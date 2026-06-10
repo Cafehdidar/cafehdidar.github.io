@@ -442,7 +442,7 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
         const filtered = mapped.filter((o: any) => {
           const tableEmpty = !o.tableNumber || o.tableNumber === 'undefined' || String(o.tableNumber).trim() === '' || o.tableNumber === '0';
           const itemsEmpty = !o.items || String(o.
-                                                function GalleryView({ gallery }: any) {
+function GalleryView({ gallery }: any) {
   return (
     <div className="p-4 animate-fade-in">
       <h2 className="text-3xl font-black text-[#D4A853] mb-8 text-center">گالری دیدار</h2>
@@ -695,7 +695,6 @@ function AdminMenuManager({ menu, setMenu }: any) {
     if (!form.name) return;
     const newItem = { ...form, id: Math.random().toString(36).substr(2, 9) } as MenuItem;
 
-    // ارسال به گوگل شیت
     callScript(`action=addMenu&id=${newItem.id}&name=${encodeURIComponent(form.name)}&price=${form.price}&category=${form.category}&emoji=${encodeURIComponent(form.emoji || '')}&description=${encodeURIComponent(form.description || '')}&image=${encodeURIComponent(form.image || '')}`);
 
     setMenu([newItem, ...menu]);
