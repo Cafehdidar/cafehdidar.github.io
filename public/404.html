@@ -1,20 +1,24 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <title>در حال انتقال...</title>
     <script>
-        // گرفتن شماره میز از آدرس اصلی (مثلاً گرفتن عدد 1 از آدرس /1)
         var path = window.location.pathname;
+        // گرفتن شماره میز (مثلاً عدد 1 از مسیر /1)
         var tableNum = path.replace(/^\/|\/$/g, ''); 
         
-        // اگر شماره میز عدد بود، کاربر را همراه با پارامتر میز به منو هدایت کن
+        // هدایت مستقیم کاربر به دامنه اصلی بدون نیاز به کلمه studio
         if(tableNum && !isNaN(tableNum)) {
-            window.location.href = "https://cafehdidar.github.io/studio/?table=" + tableNum;
+            window.location.href = "https://cafehdidar.github.io/?table=" + tableNum;
         } else {
-            window.location.href = "https://cafehdidar.github.io/studio/";
+            window.location.href = "https://cafehdidar.github.io/";
         }
     </script>
 </head>
 <body>
-    در حال انتقال به منوی کافه دیدار...
+    <div style="text-align: center; margin-top: 50px; font-family: Tahoma; direction: rtl;">
+        در حال انتقال به منوی دیجیتال کافه دیدار...
+    </div>
 </body>
 </html>
