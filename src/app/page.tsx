@@ -116,29 +116,35 @@ export default function CafeDidarApp() {
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const handlePlaceOrder = async () => {
-    if (cart.length === 0) return;
+  if (cart.length === 0) return;
 
-    const itemsStr = cart.map(i => `${i.name} (${i.quantity})`).join(', ');
-    const table = tableNumber || 'Takeout';
-    
-    // Construct params for write via iframe trick
-    const params = new URLSearchParams({
-      tableNumber: table,
-      items: itemsStr,
-      totalPrice: cartTotal.toString(),
-      status: 'جدید'
+  const itemsStr = cart.map(i => `${i.name} (${i.quantity})`).join(', ');
+  const table = tableNumber || 'Takesout';
+
+  const params = new URLSearchParams({
+    tableNumber: table,
+    items: itemsStr,
+    totalPrice: cartTotal.toString(),
+    status: 'جدید'
+  });
+
+  try {
+    await fetch(`${GAS_URL}?${params.toString()}`, {
+      method: 'GET',
+      mode: 'no-cors'
     });
+  } catch (error) {
+    console.error("Order failed but continuing locally...", error);
+  }
 
-    callScript(params.toString());
-    
-    setIsSuccess(true);
-    setCart([]);
-    setTimeout(() => {
-      setIsSuccess(false);
-      setCurrentView('MENU');
-    }, 3500);
-  };
-
+  setIsSuccess(true);
+  setCart([]);
+  setTimeout(() => {
+    setIsSuccess(false);
+    setCurrentView('MENU');
+  }, 3500);
+};
+  
   const handleLogoClick = () => {
     setIsLogoTapped(prev => prev + 1);
     if (isLogoTapped + 1 >= 5) {
