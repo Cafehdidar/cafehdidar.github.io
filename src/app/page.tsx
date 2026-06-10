@@ -29,8 +29,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { DEFAULT_MENU } from '@/lib/constants';
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbx4GrXsUkhk0mTnlkBLCBUXCJneSPnc7sYY3E0dhb-dI8Jvh7wKQYR8w3EdCYi9G4-hjw/exec';
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4GrXsUkhk0mTnlkBLCBUXCJneSPnc7sYY3E0dhb-dI8Jvh7wKQYR8w3EdCYi9G4-hjw/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbx9a4jf_a-kMgEwl4WHARe9GubhnX6Xpb4AxF0TeD40fjWUYiuRyb0gxLnUIpYodUggYg/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbx9a4jf_a-kMgEwl4WHARe9GubhnX6Xpb4AxF0TeD40fjWUYiuRyb0gxLnUIpYodUggYg/exec';
 
 const callScript = (params: string) => {
   if (typeof window === 'undefined') return;
@@ -407,7 +407,99 @@ function CartView({ cart, updateQuantity, removeFromCart, total, tableNumber, on
             <Button onClick={onPlaceOrder} className="w-full h-16 bg-[#D4A853] text-[#1C0F0A] font-black rounded-2xl text-lg shadow-xl shadow-[#D4A853]/20 transition-transform active:scale-95">ثبت و تایید نهایی</Button>
           </div>
         </div>
-            )}
+      )}
+    </div>
+  );
+}
+
+function AdminLogin({ onLoginSuccess }: any) {
+  const [pass, setPass] = useState('');
+  return (
+    <div className="p-8 flex flex-col items-center justify-center h-[70vh]">
+      <LogIn size={48} className="text-[#D4A853] mb-8" />
+      <h2 className="text-2xl font-black mb-8">ورود به پنل مدیریت</h2>
+      <Input type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="رمز عبور" className="bg-[#2A1810] border-[#3D2B24] h-14 text-center mb-6" />
+      <Button onClick={() => pass === 'didar1234' ? onLoginSuccess() : alert('غلط')} className="w-full bg-[#D4A853] text-[#1C0F0A] h-14 font-black">ورود</Button>
+    </div>
+  );
+}
+
+function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
+  const deletedRowIndexes = useRef(new Set());
+  const [rawOrders, setRawOrders] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState('orders');
+
+  const fetchOrders = async () => {
+    try {
+      const res = await fetch(`${API_URL}?timestamp=${Date.now()}`);
+      if (!res.ok) throw new Error('Network response was not ok');
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const mapped = data.map((o: any, idx: number) => ({
+          ...o,
+          rowIndex: idx
+        }));
+        const filtered = mapped.filter((o: any) => {
+          const tableEmpty = !o.tableNumber || o.tableNumber === 'undefined' || String(o.tableNumber).trim() === '' || o.tableNumber === '0';
+          const itemsEmpty = !o.items || String(o.
+                                                function GalleryView({ gallery }: any) {
+  return (
+    <div className="p-4 animate-fade-in">
+      <h2 className="text-3xl font-black text-[#D4A853] mb-8 text-center">گالری دیدار</h2>
+      <div className="grid grid-cols-2 gap-3">
+        {gallery.map((img: any) => (
+          <div key={img.id} className="aspect-square bg-[#2A1810] rounded-2xl overflow-hidden border border-[#3D2B24] group relative">
+            <img src={img.url} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CartView({ cart, updateQuantity, removeFromCart, total, tableNumber, onPlaceOrder, isSuccess }: any) {
+  if (isSuccess) return (
+    <div className="flex flex-col items-center justify-center h-[75vh] p-6 animate-fade-in">
+      <div className="w-32 h-32 bg-[#D4A853] rounded-full flex items-center justify-center mb-8 shadow-2xl relative overflow-hidden">
+        <div className="absolute inset-0 bg-white/20 animate-ping-slow rounded-full"></div>
+        <CheckCircle2 size={80} className="text-[#1C0F0A] relative z-10" />
+      </div>
+      <h2 className="text-3xl font-black text-[#D4A853] drop-shadow-lg">سفارش ثبت شد</h2>
+      <p className="text-[#A89B95] mt-2 text-center font-bold">سفارش شما {tableNumber ? `میز ${tableNumber}` : 'بیرون‌بر'} دریافت شد.</p>
+    </div>
+  );
+
+  return (
+    <div className="p-4 pb-20 animate-slide-up">
+      <h2 className="text-3xl font-black text-[#D4A853] mb-8">صورتحساب</h2>
+      {cart.length === 0 ? (
+        <div className="text-center text-[#A89B95] py-20 opacity-30"><ShoppingCart size={64} className="mx-auto" /><p className="mt-4">سبد خرید خالی است</p></div>
+      ) : (
+        <div className="space-y-4">
+          {cart.map((item: any) => (
+            <div key={item.id} className="bg-[#2A1810] p-4 rounded-2xl flex items-center gap-4 border border-[#3D2B24]">
+              <div className="w-12 h-12 rounded-xl overflow-hidden bg-[#1C0F0A] flex items-center justify-center">{item.image ? <img src={item.image} className="w-full h-full object-cover" alt="" /> : <span>{item.emoji}</span>}</div>
+              <div className="flex-1">
+                <h4 className="font-bold text-sm text-[#F5E6D3]">{item.name}</h4>
+                <p className="text-[#D4A853] text-xs font-black">{(item.price * item.quantity / 1000).toLocaleString()} تومان</p>
+              </div>
+              <div className="flex items-center gap-3 bg-black/40 rounded-full px-3 py-1">
+                <button onClick={() => updateQuantity(item.id, -1)} className="text-[#D4A853]"><Minus size={14} /></button>
+                <span className="text-xs font-black">{item.quantity}</span>
+                <button onClick={() => updateQuantity(item.id, 1)} className="text-[#D4A853]"><Plus size={14} /></button>
+              </div>
+              <button onClick={() => removeFromCart(item.id)} className="text-red-500/50"><Trash2 size={18} /></button>
+            </div>
+          ))}
+          <div className="mt-10 bg-[#2A1810] p-6 rounded-3xl border border-[#D4A853]/30">
+            <div className="flex justify-between items-center mb-6">
+              <span className="text-[#A89B95] font-bold">مجموع کل:</span>
+              <span className="text-3xl font-black text-[#D4A853]">{(total / 1000).toLocaleString()} <span className="text-xs">تومان</span></span>
+            </div>
+            <Button onClick={onPlaceOrder} className="w-full h-16 bg-[#D4A853] text-[#1C0F0A] font-black rounded-2xl text-lg shadow-xl shadow-[#D4A853]/20 transition-transform active:scale-95">ثبت و تایید نهایی</Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -545,7 +637,6 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
   );
 }
 
-// توابع کمکی مدیریت
 function AdminQRCodeManager() {
   const [siteUrl, setSiteUrl] = useState('');
   useEffect(() => {
@@ -599,13 +690,19 @@ function AdminQRCodeManager() {
 function AdminMenuManager({ menu, setMenu }: any) {
   const [isAdding, setIsAdding] = useState(false);
   const [form, setForm] = useState<Partial<MenuItem>>({ name: '', price: 0, category: 'HOT', emoji: '☕', description: '', image: '' });
+
   const handleSave = () => {
     if (!form.name) return;
     const newItem = { ...form, id: Math.random().toString(36).substr(2, 9) } as MenuItem;
+
+    // ارسال به گوگل شیت
+    callScript(`action=addMenu&id=${newItem.id}&name=${encodeURIComponent(form.name)}&price=${form.price}&category=${form.category}&emoji=${encodeURIComponent(form.emoji || '')}&description=${encodeURIComponent(form.description || '')}&image=${encodeURIComponent(form.image || '')}`);
+
     setMenu([newItem, ...menu]);
     setIsAdding(false);
     setForm({ name: '', price: 0, category: 'HOT', emoji: '☕', description: '', image: '' });
   };
+
   const handleImage = (e: any) => {
     const file = e.target.files[0];
     if (file) {
@@ -614,6 +711,7 @@ function AdminMenuManager({ menu, setMenu }: any) {
       reader.readAsDataURL(file);
     }
   };
+
   return (
     <div className="space-y-4">
       <Button onClick={() => setIsAdding(!isAdding)} className="w-full bg-[#D4A853] text-[#1C0F0A] font-black h-12">
@@ -626,6 +724,12 @@ function AdminMenuManager({ menu, setMenu }: any) {
             <Input type="number" placeholder="قیمت" value={form.price} onChange={e => setForm({ ...form, price: Number(e.target.value) })} className="bg-[#1C0F0A] border-[#3D2B24]" />
             <Input placeholder="ایموجی" value={form.emoji} onChange={e => setForm({ ...form, emoji: e.target.value })} className="bg-[#1C0F0A] border-[#3D2B24]" />
           </div>
+          <Input 
+            placeholder="لینک عکس (https://...)" 
+            value={form.image} 
+            onChange={e => setForm({ ...form, image: e.target.value })} 
+            className="bg-[#1C0F0A] border-[#3D2B24]" 
+          />
           <Select value={form.category} onValueChange={(v: Category) => setForm({ ...form, category: v })}>
             <SelectTrigger className="bg-[#1C0F0A] border-[#3D2B24]"><SelectValue /></SelectTrigger>
             <SelectContent className="bg-[#2A1810]">
@@ -635,6 +739,7 @@ function AdminMenuManager({ menu, setMenu }: any) {
             </SelectContent>
           </Select>
           <Textarea placeholder="توضیحات" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="bg-[#1C0F0A] border-[#3D2B24]" />
+          
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-black rounded border border-[#3D2B24] overflow-hidden">
                {form.image && <img src={form.image} className="w-full h-full object-cover" alt="" />}
@@ -667,7 +772,12 @@ function AdminGalleryManager({ gallery, setGallery }: any) {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => setGallery([{ id: Math.random(), url: reader.result as string }, ...gallery]);
+      reader.onloadend = () => {
+        const newImg = { id: Math.random().toString(), url: reader.result as string };
+        const updatedGallery = [newImg, ...gallery];
+        setGallery(updatedGallery);
+        callScript(`action=addGallery&url=${encodeURIComponent(newImg.url)}`);
+      };
       reader.readAsDataURL(file);
     }
   };
@@ -687,4 +797,4 @@ function AdminGalleryManager({ gallery, setGallery }: any) {
       </div>
     </div>
   );
-    }
+          }
