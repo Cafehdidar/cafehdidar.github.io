@@ -32,17 +32,12 @@ import { DEFAULT_MENU } from '@/lib/constants';
 const API_URL = 'https://script.google.com/macros/s/AKfycbx4GrXsUkhk0mTnlkBLCBUXCJneSPnc7sYY3E0dhb-dI8Jvh7wKQYR8w3EdCYi9G4-hjw/exec';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4GrXsUkhk0mTnlkBLCBUXCJneSPnc7sYY3E0dhb-dI8Jvh7wKQYR8w3EdCYi9G4-hjw/exec';
 
-/**
- * Helper to call the Google Apps Script via a hidden iframe to bypass CORS.
- * This is used for "fire-and-forget" write operations.
- */
 const callScript = (params: string) => {
   if (typeof window === 'undefined') return;
   const iframe = document.createElement('iframe');
   iframe.style.display = 'none';
   iframe.src = GAS_URL + '?' + params;
   document.body.appendChild(iframe);
-  // Remove the iframe after some time to clean up
   setTimeout(() => {
     if (document.body.contains(iframe)) {
       document.body.removeChild(iframe);
@@ -367,7 +362,10 @@ function GalleryView({ gallery }: any) {
         ))}
       </div>
     </div>
-  );function CartView({ cart, updateQuantity, removeFromCart, total, tableNumber, onPlaceOrder, isSuccess }: any) {
+  );
+}
+
+function CartView({ cart, updateQuantity, removeFromCart, total, tableNumber, onPlaceOrder, isSuccess }: any) {
   if (isSuccess) return (
     <div className="flex flex-col items-center justify-center h-[75vh] p-6 animate-fade-in">
       <div className="w-32 h-32 bg-[#D4A853] rounded-full flex items-center justify-center mb-8 shadow-2xl relative overflow-hidden">
@@ -409,7 +407,7 @@ function GalleryView({ gallery }: any) {
             <Button onClick={onPlaceOrder} className="w-full h-16 bg-[#D4A853] text-[#1C0F0A] font-black rounded-2xl text-lg shadow-xl shadow-[#D4A853]/20 transition-transform active:scale-95">ثبت و تایید نهایی</Button>
           </div>
         </div>
-      )}
+            )}
     </div>
   );
 }
@@ -547,6 +545,7 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
   );
 }
 
+// توابع کمکی مدیریت
 function AdminQRCodeManager() {
   const [siteUrl, setSiteUrl] = useState('');
   useEffect(() => {
@@ -688,6 +687,4 @@ function AdminGalleryManager({ gallery, setGallery }: any) {
       </div>
     </div>
   );
-                    }
-                    
-}
+    }
