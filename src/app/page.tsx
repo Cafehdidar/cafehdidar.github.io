@@ -129,7 +129,6 @@ export default function CafeDidarApp() {
 
     try {
       callScript(params.toString());
-      fetch(GAS_URL + '?' + params.toString(), {mode: 'no-cors'}).catch(()=>{});
       setIsSuccess(true);
       setCart([]);
       setTimeout(() => {
@@ -330,7 +329,7 @@ function FeedbackView({ onFeedbackSubmit }: any) {
           <Input 
             value={name} 
             onChange={e => setName(e.target.value)} 
-            placeholder="مثلاً: علی رضایی" 
+            placeholder="مثلاً: علی " 
             className="bg-[#2A1810] border-[#3D2B24] h-12" 
           />
         </div>
@@ -368,10 +367,7 @@ function GalleryView({ gallery }: any) {
         ))}
       </div>
     </div>
-  );
-}
-
-function CartView({ cart, updateQuantity, removeFromCart, total, tableNumber, onPlaceOrder, isSuccess }: any) {
+  );function CartView({ cart, updateQuantity, removeFromCart, total, tableNumber, onPlaceOrder, isSuccess }: any) {
   if (isSuccess) return (
     <div className="flex flex-col items-center justify-center h-[75vh] p-6 animate-fade-in">
       <div className="w-32 h-32 bg-[#D4A853] rounded-full flex items-center justify-center mb-8 shadow-2xl relative overflow-hidden">
@@ -428,8 +424,9 @@ function AdminLogin({ onLoginSuccess }: any) {
       <Button onClick={() => pass === 'didar1234' ? onLoginSuccess() : alert('غلط')} className="w-full bg-[#D4A853] text-[#1C0F0A] h-14 font-black">ورود</Button>
     </div>
   );
-                         }
-      function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
+}
+
+function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
   const deletedRowIndexes = useRef(new Set());
   const [rawOrders, setRawOrders] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('orders');
@@ -691,4 +688,6 @@ function AdminGalleryManager({ gallery, setGallery }: any) {
       </div>
     </div>
   );
+                    }
+                    
 }
