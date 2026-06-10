@@ -35,10 +35,7 @@ const callScript = (params: string) => {
   if (typeof window === 'undefined') return;
   const iframe = document.createElement('iframe');
   iframe.style.display = 'none';
-  iframe.src = API_URL + '?' + params; // 🟢 اصلاح شد: حالا به لینک درست متصل شد
-  
-  iframe.style.display = 'none';
-  iframe.src = GAS_URL + '?' + params;
+  iframe.src = API_URL + '?' + params;
   document.body.appendChild(iframe);
   setTimeout(() => {
     if (document.body.contains(iframe)) {
@@ -116,14 +113,12 @@ export default function CafeDidarApp() {
     if (cart.length === 0) return;
     const itemsStr = cart.map(i => `${i.name} (${i.quantity}عدد)`).join('، ');
     const table = tableNumber || 'Takeout';
-
     const params = new URLSearchParams({
       tableNumber: table,
       items: itemsStr,
       totalPrice: cartTotal.toString(),
-      status: "جدید"
+      sheet: 'orders'
     });
-
     try {
       callScript(params.toString());
       setIsSuccess(true);
@@ -431,7 +426,7 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
   const [rawOrders, setRawOrders] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('orders');
 
-    const fetchOrders = async () => {
+  const fetchOrders = async () => {
     try {
       const res = await fetch(`${API_URL}?sheet=orders&timestamp=${Date.now()}`);
       if (!res.ok) throw new Error('Network response was not ok');
@@ -447,7 +442,7 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
       // Handle silently
     }
   };
-  
+
   useEffect(() => {
     fetchOrders();
     const interval = setInterval(fetchOrders, 10000);
@@ -455,7 +450,7 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
   }, []);
 
   const handleDeleteOrder = async (order: any) => {
-    deletedRowIndexes.current.add(order.rowIndex);
+    deletedRowIndexes.current.add((order.rowIndex);
     setRawOrders(prev => prev.filter(o => o.rowIndex !== order.rowIndex));
     callScript(`action=deleteOrder&rowIndex=${order.rowIndex}`);
   };
@@ -552,7 +547,8 @@ function AdminQRCodeManager() {
     try {
       const response = await fetch(qrUrl);
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const url = window.URL.revokeObjectURL ? window.URL.createObjectURL(blob) : '';
+      if(!url) return;
       const a = document.createElement('a');
       a.href = url;
       a.download = `table-${tableNum}.png`;
@@ -572,7 +568,7 @@ function AdminQRCodeManager() {
           <div key={num} className="bg-[#2A1810] p-4 rounded-2xl border border-[#3D2B24] flex flex-col items-center gap-3">
             <span className="text-xs font-black text-[#F5E6D3]">میز {num}</span>
             <div className="bg-white p-2 rounded-xl">
-               <img 
+              <img 
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(siteUrl + '?table=' + num)}`} 
                 alt={`Table ${num}`}
                 className="w-32 h-32"
@@ -594,18 +590,14 @@ function AdminQRCodeManager() {
 function AdminMenuManager({ menu, setMenu }: any) {
   const [isAdding, setIsAdding] = useState(false);
   const [form, setForm] = useState<Partial<MenuItem>>({ name: '', price: 0, category: 'HOT', emoji: '☕', description: '', image: '' });
-
   const handleSave = () => {
     if (!form.name) return;
     const newItem = { ...form, id: Math.random().toString(36).substr(2, 9) } as MenuItem;
-
     callScript(`action=addMenu&id=${newItem.id}&name=${encodeURIComponent(form.name)}&price=${form.price}&category=${form.category}&emoji=${encodeURIComponent(form.emoji || '')}&description=${encodeURIComponent(form.description || '')}&image=${encodeURIComponent(form.image || '')}`);
-
     setMenu([newItem, ...menu]);
     setIsAdding(false);
     setForm({ name: '', price: 0, category: 'HOT', emoji: '☕', description: '', image: '' });
   };
-
   const handleImage = (e: any) => {
     const file = e.target.files[0];
     if (file) {
@@ -614,7 +606,6 @@ function AdminMenuManager({ menu, setMenu }: any) {
       reader.readAsDataURL(file);
     }
   };
-
   return (
     <div className="space-y-4">
       <Button onClick={() => setIsAdding(!isAdding)} className="w-full bg-[#D4A853] text-[#1C0F0A] font-black h-12">
@@ -700,4 +691,5 @@ function AdminGalleryManager({ gallery, setGallery }: any) {
       </div>
     </div>
   );
-}
+             }
+                                                                       
