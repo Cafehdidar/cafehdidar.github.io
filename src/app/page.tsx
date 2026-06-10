@@ -429,25 +429,23 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
   const [rawOrders, setRawOrders] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('orders');
 
-  const fetchOrders = async () => {
+    const fetchOrders = async () => {
     try {
-      const res = await fetch(`${API_URL}?timestamp=${Date.now()}`);
+      const res = await fetch(`${API_URL}?sheet=orders&timestamp=${Date.now()}`);
       if (!res.ok) throw new Error('Network response was not ok');
       const data = await res.json();
       if (Array.isArray(data)) {
         const mapped = data.map((o: any, idx: number) => ({
           ...o,
-          rowIndex: idx
-                }));
-        //  کد درست و اصلاح‌شده:
-setRawOrders(prev => prev.filter(o => o.rowIndex !== order.rowIndex));
-        
+          rowIndex: o.rowIndex !== undefined ? o.rowIndex : idx
+        }));
+        setRawOrders(mapped);
       }
     } catch (err) {
       // Handle silently
     }
   };
-
+  
   useEffect(() => {
     fetchOrders();
     const interval = setInterval(fetchOrders, 10000);
