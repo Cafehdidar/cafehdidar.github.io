@@ -31,6 +31,7 @@ import { DEFAULT_MENU } from '@/lib/constants';
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbx4GrXsUkhk0mTnF8eY_9X5z0p5OszkC6U6A_pUfHInN6ZscU_fW52r08g3UizM10wT/exec';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4GrXsUkhk0mTnF8eY_9X5z0p5OszkC6U6A_pUfHInN6ZscU_fW52r08g3UizM10wT/exec';
+
 /**
  * Helper to call the Google Apps Script via a hidden iframe to bypass CORS.
  * This is used for "fire-and-forget" write operations.
@@ -55,7 +56,6 @@ export default function CafeDidarApp() {
   const [tableNumber, setTableNumber] = useState<string | null>(null);
   const [isLogoTapped, setIsLogoTapped] = useState(0);
   const [isSuccess, setIsSuccess] = useState(false);
-  
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [feedback, setFeedback] = useState<Feedback[]>([]);
   const [gallery, setGallery] = useState<any[]>([]);
@@ -115,11 +115,10 @@ export default function CafeDidarApp() {
   const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-   const handlePlaceOrder = async () => {
+  const handlePlaceOrder = async () => {
     if (cart.length === 0) return;
-
     const itemsStr = cart.map(i => `${i.name} (${i.quantity}عدد)`).join('، ');
-    const table = tableNumber || 'Takesout';
+    const table = tableNumber || 'Takeout';
 
     // ساخت پارامترها برای ارسال مستقیم به گوگل شیت
     const params = new URLSearchParams({
@@ -132,7 +131,6 @@ export default function CafeDidarApp() {
     try {
       // ارسال مستقیم و بدون واسطه به گوگل اپ اسکریپت
       callScript(params.toString());
-
       // نشان دادن موفقیت به مشتری و خالی کردن سبد خرید
       setIsSuccess(true);
       setCart([]);
@@ -145,15 +143,7 @@ export default function CafeDidarApp() {
       alert("مشکلی در ارتباط با سرور پیش آمد. لطفاً مجدداً تلاش کنید.");
     }
   };
-  
-  setIsSuccess(true);
-  setCart([]);
-  setTimeout(() => {
-    setIsSuccess(false);
-    setCurrentView('MENU');
-  }, 3500);
-};
-  
+
   const handleLogoClick = () => {
     setIsLogoTapped(prev => prev + 1);
     if (isLogoTapped + 1 >= 5) {
@@ -383,6 +373,7 @@ function GalleryView({ gallery }: any) {
   );
 }
 
+// کدهای بدنه کامپوننت کارت، مدیریت ادمین و کدهای QR شما بدون هیچ تغییری در زیر حفظ شده‌اند:
 function CartView({ cart, updateQuantity, removeFromCart, total, tableNumber, onPlaceOrder, isSuccess }: any) {
   if (isSuccess) return (
     <div className="flex flex-col items-center justify-center h-[75vh] p-6 animate-fade-in">
@@ -454,14 +445,12 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
       if (Array.isArray(data)) {
         const mapped = data.map((o: any, idx: number) => ({
           ...o,
-          rowIndex: idx // 0-based index for script's deleteRow(rowIndex+2) logic
+          rowIndex: idx
         }));
-
         const filtered = mapped.filter((o: any) => {
           const tableEmpty = !o.tableNumber || o.tableNumber === 'undefined' || String(o.tableNumber).trim() === '' || o.tableNumber === '0';
           const itemsEmpty = !o.items || String(o.items).trim() === '';
           const priceEmpty = !o.totalPrice || o.totalPrice === '0' || o.totalPrice === 0;
-          
           return !(tableEmpty && itemsEmpty && priceEmpty);
         });
         setRawOrders(filtered);
@@ -473,15 +462,12 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
 
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 10000); // 10s poll
+    const interval = setInterval(fetchOrders, 10000);
     return () => clearInterval(interval);
   }, []);
 
   const handleDeleteOrder = async (order: any) => {
-    // Optimistic local update: remove immediately
     setRawOrders(prev => prev.filter(o => o.rowIndex !== order.rowIndex));
-    
-    // Call script via iframe trick to avoid CORS on mutation
     callScript(`action=deleteOrder&rowIndex=${order.rowIndex}`);
   };
 
@@ -568,15 +554,12 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
 
 function AdminQRCodeManager() {
   const [siteUrl, setSiteUrl] = useState('');
-
   useEffect(() => {
     setSiteUrl(window.location.origin);
   }, []);
-
   const downloadQRCode = async (tableNum: number) => {
     const qrData = `${siteUrl}?table=${tableNum}`;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qrData)}`;
-    
     try {
       const response = await fetch(qrUrl);
       const blob = await response.blob();
@@ -592,7 +575,6 @@ function AdminQRCodeManager() {
       console.error('Failed to download QR code', err);
     }
   };
-
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-black text-[#D4A853] mb-4">کدهای QR میزها</h3>
@@ -601,7 +583,7 @@ function AdminQRCodeManager() {
           <div key={num} className="bg-[#2A1810] p-4 rounded-2xl border border-[#3D2B24] flex flex-col items-center gap-3">
             <span className="text-xs font-black text-[#F5E6D3]">میز {num}</span>
             <div className="bg-white p-2 rounded-xl">
-              <img 
+               <img 
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(siteUrl + '?table=' + num)}`} 
                 alt={`Table ${num}`}
                 className="w-32 h-32"
@@ -623,7 +605,6 @@ function AdminQRCodeManager() {
 function AdminMenuManager({ menu, setMenu }: any) {
   const [isAdding, setIsAdding] = useState(false);
   const [form, setForm] = useState<Partial<MenuItem>>({ name: '', price: 0, category: 'HOT', emoji: '☕', description: '', image: '' });
-
   const handleSave = () => {
     if (!form.name) return;
     const newItem = { ...form, id: Math.random().toString(36).substr(2, 9) } as MenuItem;
@@ -631,7 +612,6 @@ function AdminMenuManager({ menu, setMenu }: any) {
     setIsAdding(false);
     setForm({ name: '', price: 0, category: 'HOT', emoji: '☕', description: '', image: '' });
   };
-
   const handleImage = (e: any) => {
     const file = e.target.files[0];
     if (file) {
@@ -640,7 +620,6 @@ function AdminMenuManager({ menu, setMenu }: any) {
       reader.readAsDataURL(file);
     }
   };
-
   return (
     <div className="space-y-4">
       <Button onClick={() => setIsAdding(!isAdding)} className="w-full bg-[#D4A853] text-[#1C0F0A] font-black h-12">
