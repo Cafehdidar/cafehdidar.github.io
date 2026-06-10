@@ -1,4 +1,5 @@
 import { STORAGE_KEYS, DEFAULT_MENU } from './constants';
+// @ts-ignore
 import { MenuItem, Order, Feedback, LoyaltyAccount } from './types';
 
 export const getStoredMenu = (): MenuItem[] => {
