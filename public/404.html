@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script>
+        // گرفتن شماره میز از آدرس اصلی (مثلاً گرفتن عدد 1 از آدرس /1)
+        var path = window.location.pathname;
+        var tableNum = path.replace(/^\/|\/$/g, ''); 
+        
+        // اگر شماره میز عدد بود، کاربر را همراه با پارامتر میز به منو هدایت کن
+        if(tableNum && !isNaN(tableNum)) {
+            window.location.href = "https://cafehdidar.github.io/studio/?table=" + tableNum;
+        } else {
+            window.location.href = "https://cafehdidar.github.io/studio/";
+        }
+    </script>
+</head>
+<body>
+    در حال انتقال به منوی کافه دیدار...
+</body>
+</html>
