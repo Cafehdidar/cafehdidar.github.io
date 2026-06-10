@@ -29,7 +29,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { DEFAULT_MENU } from '@/lib/constants';
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbx8WfiuXX4CV-CN1B6yLE5deyEl6MzteEBVnPKgq-UQfeRsZQRIdQT_hI7es_-hjc5XWw/exec;
+const  API_URL = 'https://script.google.com/macros/s/AKfycbzazT_tvSCmSBFv9TR0h-SxP9rk1lfi_0UbuIMycK9VvVGrN_1tZcbRq_CTXyfPCPSiMA/exec';
+
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbx9a4jf_a-kMgEwl4WHARe9GubhnX6Xpb4AxF0TeD40fjWUYiuRyb0gxLnUIpYodUggYg/exec';
 
 const callScript = (params: string) => {
