@@ -115,28 +115,37 @@ export default function CafeDidarApp() {
   const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  const handlePlaceOrder = async () => {
-  if (cart.length === 0) return;
+   const handlePlaceOrder = async () => {
+    if (cart.length === 0) return;
 
-  const itemsStr = cart.map(i => `${i.name} (${i.quantity})`).join(', ');
-  const table = tableNumber || 'Takesout';
+    const itemsStr = cart.map(i => `${i.name} (${i.quantity}عدد)`).join('، ');
+    const table = tableNumber || 'Takesout';
 
-  const params = new URLSearchParams({
-    tableNumber: table,
-    items: itemsStr,
-    totalPrice: cartTotal.toString(),
-    status: 'جدید'
-  });
-
-  try {
-    await fetch(`${GAS_URL}?${params.toString()}`, {
-      method: 'GET',
-      mode: 'no-cors'
+    // ساخت پارامترها برای ارسال مستقیم به گوگل شیت
+    const params = new URLSearchParams({
+      tableNumber: table,
+      items: itemsStr,
+      totalPrice: cartTotal.toString(),
+      status: "جدید"
     });
-  } catch (error) {
-    console.error("Order failed but continuing locally...", error);
-  }
 
+    try {
+      // ارسال مستقیم و بدون واسطه به گوگل اپ اسکریپت
+      callScript(params.toString());
+
+      // نشان دادن موفقیت به مشتری و خالی کردن سبد خرید
+      setIsSuccess(true);
+      setCart([]);
+      setTimeout(() => {
+        setIsSuccess(false);
+        setCurrentView('MENU');
+      }, 3500);
+    } catch (error) {
+      console.error("خطا در ثبت سفارش:", error);
+      alert("مشکلی در ارتباط با سرور پیش آمد. لطفاً مجدداً تلاش کنید.");
+    }
+  };
+  
   setIsSuccess(true);
   setCart([]);
   setTimeout(() => {
