@@ -442,7 +442,7 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
         const filtered = mapped.filter((o: any) => {
           const tableEmpty = !o.tableNumber || o.tableNumber === 'undefined' || String(o.tableNumber).trim() === '' || o.tableNumber === '0';
           const itemsEmpty = !o.items || String(o.
-function GalleryView({ gallery }: any) {
+ function GalleryView({ gallery }: any) {
   return (
     <div className="p-4 animate-fade-in">
       <h2 className="text-3xl font-black text-[#D4A853] mb-8 text-center">گالری دیدار</h2>
@@ -796,4 +796,4 @@ function AdminGalleryManager({ gallery, setGallery }: any) {
       </div>
     </div>
   );
-          }
+            }
