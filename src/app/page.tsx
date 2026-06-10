@@ -29,8 +29,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { DEFAULT_MENU } from '@/lib/constants';
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbx4GrXsUkhk0mTnF8eY_9X5z0p5OszkC6U6A_pUfHInN6ZscU_fW52r08g3UizM10wT/exec';
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4GrXsUkhk0mTnF8eY_9X5z0p5OszkC6U6A_pUfHInN6ZscU_fW52r08g3UizM10wT/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbx4GrXsUkhk0mTnlkBLCBUXCJneSPnc7sYY3E0dhb-dI8Jvh7wKQYR8w3EdCYi9G4-hjw/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4GrXsUkhk0mTnlkBLCBUXCJneSPnc7sYY3E0dhb-dI8Jvh7wKQYR8w3EdCYi9G4-hjw/exec';
 
 /**
  * Helper to call the Google Apps Script via a hidden iframe to bypass CORS.
@@ -120,7 +120,6 @@ export default function CafeDidarApp() {
     const itemsStr = cart.map(i => `${i.name} (${i.quantity}عدد)`).join('، ');
     const table = tableNumber || 'Takeout';
 
-    // ساخت پارامترها برای ارسال مستقیم به گوگل شیت
     const params = new URLSearchParams({
       tableNumber: table,
       items: itemsStr,
@@ -129,9 +128,7 @@ export default function CafeDidarApp() {
     });
 
     try {
-      // ارسال مستقیم و بدون واسطه به گوگل اپ اسکریپت
       callScript(params.toString());
-      // نشان دادن موفقیت به مشتری و خالی کردن سبد خرید
       setIsSuccess(true);
       setCart([]);
       setTimeout(() => {
@@ -373,7 +370,6 @@ function GalleryView({ gallery }: any) {
   );
 }
 
-// کدهای بدنه کامپوننت کارت، مدیریت ادمین و کدهای QR شما بدون هیچ تغییری در زیر حفظ شده‌اند:
 function CartView({ cart, updateQuantity, removeFromCart, total, tableNumber, onPlaceOrder, isSuccess }: any) {
   if (isSuccess) return (
     <div className="flex flex-col items-center justify-center h-[75vh] p-6 animate-fade-in">
