@@ -30,11 +30,13 @@ import { cn } from '@/lib/utils';
 import { DEFAULT_MENU } from '@/lib/constants';
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbxGYMA13SZEQxYEU86iTTv1ip5PJ1f-qZ4nPh0nUbQWdyKiV0tDTFPKRkSO3Ea0Zzxrcw/exec';
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbx9a4jf_a-kMgEwl4WHARe9GubhnX6Xpb4AxF0TeD40fjWUYiuRyb0gxLnUIpYodUggYg/exec';
 
 const callScript = (params: string) => {
   if (typeof window === 'undefined') return;
   const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.src = API_URL + '?' + params; // 🟢 اصلاح شد: حالا به لینک درست متصل شد
+  
   iframe.style.display = 'none';
   iframe.src = GAS_URL + '?' + params;
   document.body.appendChild(iframe);
