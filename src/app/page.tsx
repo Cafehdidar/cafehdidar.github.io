@@ -129,7 +129,6 @@ export default function CafeDidarApp() {
       }, 3500);
     } catch (error) {
       console.error("خطا در ثبت سفارش:", error);
-      alert("مشکلی در ارتباط با سرور پیش آمد. لطفاً مجدداً تلاش کنید.");
     }
   };
 
@@ -321,7 +320,7 @@ function FeedbackView({ onFeedbackSubmit }: any) {
           <Input 
             value={name} 
             onChange={e => setName(e.target.value)} 
-            placeholder="مثلاً: علی " 
+            placeholder="مثلاً: علی" 
             className="bg-[#2A1810] border-[#3D2B24] h-12" 
           />
         </div>
@@ -419,10 +418,9 @@ function AdminLogin({ onLoginSuccess }: any) {
       <Button onClick={() => pass === 'didar1234' ? onLoginSuccess() : alert('غلط')} className="w-full bg-[#D4A853] text-[#1C0F0A] h-14 font-black">ورود</Button>
     </div>
   );
-}
-
-function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
-  const deletedRowIndexes = useRef(new Set());
+          }
+ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
+  const deletedRowIndexes = useRef<Set<number>>(new Set());
   const [rawOrders, setRawOrders] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('orders');
 
@@ -450,7 +448,7 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
   }, []);
 
   const handleDeleteOrder = async (order: any) => {
-    deletedRowIndexes.current.add((order.rowIndex);
+    deletedRowIndexes.current.add(order.rowIndex);
     setRawOrders(prev => prev.filter(o => o.rowIndex !== order.rowIndex));
     callScript(`action=deleteOrder&rowIndex=${order.rowIndex}`);
   };
@@ -541,14 +539,14 @@ function AdminQRCodeManager() {
   useEffect(() => {
     setSiteUrl(window.location.origin);
   }, []);
+  
   const downloadQRCode = async (tableNum: number) => {
     const qrData = `${siteUrl}?table=${tableNum}`;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qrData)}`;
     try {
       const response = await fetch(qrUrl);
       const blob = await response.blob();
-      const url = window.URL.revokeObjectURL ? window.URL.createObjectURL(blob) : '';
-      if(!url) return;
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `table-${tableNum}.png`;
@@ -560,6 +558,7 @@ function AdminQRCodeManager() {
       console.error('Failed to download QR code', err);
     }
   };
+
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-black text-[#D4A853] mb-4">کدهای QR میزها</h3>
@@ -590,6 +589,7 @@ function AdminQRCodeManager() {
 function AdminMenuManager({ menu, setMenu }: any) {
   const [isAdding, setIsAdding] = useState(false);
   const [form, setForm] = useState<Partial<MenuItem>>({ name: '', price: 0, category: 'HOT', emoji: '☕', description: '', image: '' });
+  
   const handleSave = () => {
     if (!form.name) return;
     const newItem = { ...form, id: Math.random().toString(36).substr(2, 9) } as MenuItem;
@@ -598,6 +598,7 @@ function AdminMenuManager({ menu, setMenu }: any) {
     setIsAdding(false);
     setForm({ name: '', price: 0, category: 'HOT', emoji: '☕', description: '', image: '' });
   };
+
   const handleImage = (e: any) => {
     const file = e.target.files[0];
     if (file) {
@@ -606,6 +607,7 @@ function AdminMenuManager({ menu, setMenu }: any) {
       reader.readAsDataURL(file);
     }
   };
+
   return (
     <div className="space-y-4">
       <Button onClick={() => setIsAdding(!isAdding)} className="w-full bg-[#D4A853] text-[#1C0F0A] font-black h-12">
@@ -675,6 +677,7 @@ function AdminGalleryManager({ gallery, setGallery }: any) {
       reader.readAsDataURL(file);
     }
   };
+
   return (
     <div className="space-y-4">
       <label className="w-full bg-[#D4A853] text-[#1C0F0A] font-black h-12 rounded-xl flex items-center justify-center cursor-pointer">
@@ -691,5 +694,4 @@ function AdminGalleryManager({ gallery, setGallery }: any) {
       </div>
     </div>
   );
-             }
-                                                                       
+      }
