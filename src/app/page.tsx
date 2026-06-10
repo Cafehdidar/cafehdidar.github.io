@@ -439,7 +439,9 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
           ...o,
           rowIndex: idx
                 }));
-        setRawOrders(filtered);
+        //  کد درست و اصلاح‌شده:
+setRawOrders(prev => prev.filter(o => o.rowIndex !== order.rowIndex));
+        
       }
     } catch (err) {
       // Handle silently
