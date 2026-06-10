@@ -29,9 +29,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { DEFAULT_MENU } from '@/lib/constants';
 
-const API_URL = '/api/orders';
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4GrXsUkhk0mTnlkBLCBUXCJneSPnc7sYY3E0dhb-dI8Jvh7wKQYR8w3EdCYi9G4-hjw/exec';
-
+const API_URL = 'https://script.google.com/macros/s/AKfycbx4GrXsUkhk0mTnF8eY_9X5z0p5OszkC6U6A_pUfHInN6ZscU_fW52r08g3UizM10wT/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4GrXsUkhk0mTnF8eY_9X5z0p5OszkC6U6A_pUfHInN6ZscU_fW52r08g3UizM10wT/exec';
 /**
  * Helper to call the Google Apps Script via a hidden iframe to bypass CORS.
  * This is used for "fire-and-forget" write operations.
