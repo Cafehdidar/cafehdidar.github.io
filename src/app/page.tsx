@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, MenuItem, OrderItem, Category, Feedback } from '@/lib/types';
 import { 
   Coffee, 
@@ -129,6 +129,7 @@ export default function CafeDidarApp() {
 
     try {
       callScript(params.toString());
+      fetch(GAS_URL + '?' + params.toString(), {mode: 'no-cors'}).catch(()=>{});
       setIsSuccess(true);
       setCart([]);
       setTimeout(() => {
@@ -427,9 +428,9 @@ function AdminLogin({ onLoginSuccess }: any) {
       <Button onClick={() => pass === 'didar1234' ? onLoginSuccess() : alert('غلط')} className="w-full bg-[#D4A853] text-[#1C0F0A] h-14 font-black">ورود</Button>
     </div>
   );
-}
-
-function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
+                         }
+      function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
+  const deletedRowIndexes = useRef(new Set());
   const [rawOrders, setRawOrders] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('orders');
 
@@ -448,7 +449,7 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
           const itemsEmpty = !o.items || String(o.items).trim() === '';
           const priceEmpty = !o.totalPrice || o.totalPrice === '0' || o.totalPrice === 0;
           return !(tableEmpty && itemsEmpty && priceEmpty);
-        });
+        }).filter(o => !deletedRowIndexes.current.has(o.rowIndex));
         setRawOrders(filtered);
       }
     } catch (err) {
@@ -463,6 +464,7 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
   }, []);
 
   const handleDeleteOrder = async (order: any) => {
+    deletedRowIndexes.current.add(order.rowIndex);
     setRawOrders(prev => prev.filter(o => o.rowIndex !== order.rowIndex));
     callScript(`action=deleteOrder&rowIndex=${order.rowIndex}`);
   };
