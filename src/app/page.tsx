@@ -435,9 +435,9 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
           <TabsTrigger value="qrcodes"><QrCode size={18} /></TabsTrigger>
        </TabsList>
 
-       <TabsContent value="orders" className="space-y-6">
-          <div className="space-y-4">
-="text-[10px] text-[#A89B95]">{f.timestamp}</span>
+       )].map((_, i) => <CheckCircle2 key={i} size={10} fill={f.rating > i ? "#D4A853" : "transparent"} color="#D4A853" />)}</div>
+                   </div>
+                   <span className="text-[10px] text-[#A89B95]">{f.timestamp}</span>
                  </div>
                  <p className="text-xs text-[#F5E6D3] mt-2 border-t border-[#3D2B24] pt-2">{f.comment}</p>
                </div>
@@ -447,7 +447,9 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
 
         <TabsContent value="gallery">
            <AdminGalleryManager gallery={gallery} setGallery={setGallery} />
-                <TabsContent value="orders" className="space-y-6">
+        </TabsContent>
+
+               <TabsContent value="orders" className="space-y-6">
           <div className="space-y-4">
             {rawOrders.length === 0 && (
               <p className="text-center text-[#A89B95] py-10 opacity-50">هیچ سفارشی وجود ندارد</p>
@@ -651,4 +653,4 @@ function AdminGalleryManager({ gallery, setGallery }: any) {
       </div>
     </div>
   );
-    }
+             }
