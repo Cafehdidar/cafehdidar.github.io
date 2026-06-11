@@ -433,7 +433,9 @@ function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
           <TabsTrigger value="feedback"><MessageCircle size={18} /></TabsTrigger>
           <TabsTrigger value="gallery"><ImageIcon size={18} /></TabsTrigger>
           <TabsTrigger value="qrcodes"><QrCode size={18} /></TabsTrigger>
-                <TabsContent value="orders" className="space-y-6">
+       </TabsList>
+
+       <TabsContent value="orders" className="space-y-6">
           <div className="space-y-4">
             {rawOrders.length === 0 && (
               <p className="text-center text-[#A89B95] py-10 opacity-50">هیچ سفارشی وجود ندارد</p>
@@ -637,4 +639,4 @@ function AdminGalleryManager({ gallery, setGallery }: any) {
       </div>
     </div>
   );
-    }
+        }
