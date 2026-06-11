@@ -671,6 +671,178 @@ function AdminQRCodeManager() {
             <div className="bg-white p-2 rounded-xl">
                <img 
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(siteUrl + '?table=' + num)}`} 
+      )}
+    </div>
+  );
+}
+
+function AdminLogin({ onLoginSuccess }: any) {
+  const [pass, setPass] = useState('');
+  return (
+    <div className="p-8 flex flex-col items-center justify-center h-[70vh]">
+      <LogIn size={48} className="text-[#D4A853] mb-8" />
+      <h2 className="text-2xl font-black mb-8">ورود به پنل مدیریت</h2>
+      <Input type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="رمز عبور" className="bg-[#2A1810] border-[#3D2B24] h-14 text-center mb-6" />
+      <Button onClick={() => pass === 'didar1234' ? onLoginSuccess() : alert('غلط')} className="w-full bg-[#D4A853] text-[#1C0F0A] h-14 font-black">ورود</Button>
+    </div>
+  );
+}
+
+function AdminDashboard({ menu, setMenu, feedback, gallery, setGallery }: any) {
+  const deletedRowIndexes = useRef(new Set());
+  const [rawOrders, setRawOrders] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState('orders');
+
+  const fetchOrders = async () => {
+    try {
+      const res = await fetch(`${API_URL}?timestamp=${Date.now()}`);
+      if (!res.ok) throw new Error('Network response was not ok');
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const mapped = data.map((o: any, idx: number) => ({
+          ...o,
+          rowIndex: idx
+        }));
+        const filtered = mapped.filter((o: any) => {
+          const tableEmpty = !o.tableNumber || o.tableNumber === 'undefined' || String(o.tableNumber).trim() === '' || o.tableNumber === '0';
+          const itemsEmpty = !o.items || String(o.items).trim() === '';
+          const priceEmpty = !o.totalPrice || o.totalPrice === '0' || o.totalPrice === 0;
+          return !(tableEmpty && itemsEmpty && priceEmpty);
+        }).filter(o => !deletedRowIndexes.current.has(o.rowIndex));
+        setRawOrders(filtered);
+      }
+    } catch (err) {
+      // Handle silently
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+    const interval = setInterval(fetchOrders, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleDeleteOrder = async (order: any) => {
+    deletedRowIndexes.current.add(order.rowIndex);
+    setRawOrders(prev => prev.filter(o => o.rowIndex !== order.rowIndex));
+    callScript(`action=deleteOrder&rowIndex=${order.rowIndex}`);
+  };
+
+  return (
+    <div className="p-4 bg-[#1C0F0A] min-h-screen pb-20 animate-fade-in">
+      <div className="grid grid-cols-1 gap-3 mb-8">
+        <div className="bg-[#2A1810] p-4 rounded-2xl border border-[#3D2B24]">
+          <p className="text-[10px] text-[#A89B95] font-black uppercase">تعداد سفارشات</p>
+          <p className="text-2xl font-black text-[#D4A853]">{rawOrders.length}</p>
+        </div>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="bg-[#2A1810] grid grid-cols-5 h-14 mb-8">
+          <TabsTrigger value="orders"><ListOrdered size={18} /></TabsTrigger>
+          <TabsTrigger value="menu"><Coffee size={18} /></TabsTrigger>
+          <TabsTrigger value="feedback"><MessageCircle size={18} /></TabsTrigger>
+          <TabsTrigger value="gallery"><ImageIcon size={18} /></TabsTrigger>
+          <TabsTrigger value="qrcodes"><QrCode size={18} /></TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="orders" className="space-y-6">
+          <div className="space-y-4">
+            {rawOrders.length === 0 && (
+              <p className="text-center text-[#A89B95] py-10 opacity-50">هیچ سفارشی وجود ندارد</p>
+            )}
+            {rawOrders.map((order) => (
+              <Card key={order.rowIndex} className="bg-[#2A1810] border-[#3D2B24] overflow-hidden">
+                <CardHeader className="p-4 flex flex-row items-center justify-between border-b border-[#3D2B24]/50">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black text-[#F5E6D3]">{order.tableNumber === 'Takeout' ? '📦 بیرون‌بر' : `میز ${order.tableNumber}`}</span>
+                    <span className="text-[10px] text-[#A89B95]">{order.timestamp}</span>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4 space-y-4">
+                  <p className="text-sm text-[#F5E6D3] leading-relaxed">{order.items}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-lg font-black text-[#D4A853]">{(Number(order.totalPrice) / 1000).toLocaleString()} تومان</span>
+                  </div>
+                  <Button 
+                    onClick={() => handleDeleteOrder(order)}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white text-[10px] font-black flex items-center gap-2 h-12"
+                  >
+                    <Check size={16} /> ✓ انجام شد
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="menu">
+          <AdminMenuManager menu={menu} setMenu={setMenu} />
+        </TabsContent>
+        
+        <TabsContent value="feedback">
+           <div className="space-y-3">
+             {feedback.map((f: any) => (
+               <div key={f.id} className="bg-[#2A1810] p-4 rounded-2xl border border-[#3D2B24]">
+                 <div className="flex justify-between items-start mb-2">
+                   <div>
+                     <p className="text-sm font-black text-[#F5E6D3]">{f.name}</p>
+                     <div className="flex mt-1">{[...Array(5)].map((_, i) => <CheckCircle2 key={i} size={10} fill={f.rating > i ? "#D4A853" : "transparent"} color="#D4A853" />)}</div>
+                   </div>
+                   <span className="text-[10px] text-[#A89B95]">{f.timestamp}</span>
+                 </div>
+                 <p className="text-xs text-[#F5E6D3] mt-2 border-t border-[#3D2B24] pt-2">{f.comment}</p>
+               </div>
+             ))}
+           </div>
+        </TabsContent>
+
+        <TabsContent value="gallery">
+           <AdminGalleryManager gallery={gallery} setGallery={setGallery} />
+        </TabsContent>
+
+        <TabsContent value="qrcodes">
+          <AdminQRCodeManager />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+// توابع کمکی مدیریت
+function AdminQRCodeManager() {
+  const [siteUrl, setSiteUrl] = useState('');
+  useEffect(() => {
+    setSiteUrl(window.location.origin);
+  }, []);
+  const downloadQRCode = async (tableNum: number) => {
+    const qrData = `${siteUrl}?table=${tableNum}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qrData)}`;
+    try {
+      const response = await fetch(qrUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `table-${tableNum}.png`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Failed to download QR code', err);
+    }
+  };
+  return (
+    <div className="space-y-4">
+      <h3 className="text-sm font-black text-[#D4A853] mb-4">کدهای QR میزها</h3>
+      <div className="grid grid-cols-2 gap-3">
+        {Array.from({ length: 15 }, (_, i) => i + 1).map(num => (
+          <div key={num} className="bg-[#2A1810] p-4 rounded-2xl border border-[#3D2B24] flex flex-col items-center gap-3">
+            <span className="text-xs font-black text-[#F5E6D3]">میز {num}</span>
+            <div className="bg-white p-2 rounded-xl">
+               <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(siteUrl + '?table=' + num)}`} 
                 alt={`Table ${num}`}
                 className="w-32 h-32"
               />
@@ -779,6 +951,4 @@ function AdminGalleryManager({ gallery, setGallery }: any) {
       </div>
     </div>
   );
-    }
-            
-                        
+                     }
