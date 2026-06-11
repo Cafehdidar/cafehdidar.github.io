@@ -406,7 +406,6 @@ function CartView({ cart, updateQuantity, removeFromCart, total, tableNumber, on
             </div>
             <Button onClick={onPlaceOrder} className="w-full h-16 bg-[#D4A853] text-[#1C0F0A] font-black rounded-2xl text-lg shadow-xl shadow-[#D4A853]/20 transition-transform active:scale-95">ثبت و تایید نهایی</Button>
           </div>
-        </div>
       )}
     </div>
   );
