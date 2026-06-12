@@ -718,11 +718,6 @@ function AdminMenuManager({ menu, setMenu }: any) {
           );
         }}
       >
-     </div>
-    </div>
-  );
-} 
-
 // تابع گالری
 function AdminGalleryManager({ gallery, setGallery }: any) {
   const handleUpload = (e: any) => {
