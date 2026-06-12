@@ -719,7 +719,15 @@ function AdminMenuManager({ menu, setMenu }: any) {
         }}
       >
 // تابع گالری
-
+// function AdminGalleryManager({ gallery, setGallery }: any) {
+  const handleUpload = (e: any) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setGallery([{ id: Math.random(), url: reader.result as string }, ...gallery]);
+      reader.readAsDataURL(file);
+    }
+  };
   return (
     <div className="space-y-4">
       <label className="w-full bg-[#D4A853] text-[#1C0F0A] font-black h-12 rounded-xl flex items-center justify-center cursor-pointer">
@@ -740,13 +748,4 @@ function AdminMenuManager({ menu, setMenu }: any) {
     </div>
   );
 }
-function AdminGalleryManager({ gallery, setGallery }: any) {
-  const handleUpload = (e: any) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setGallery([{ id: Math.random(), url: reader.result as string }, ...gallery]);
-      reader.readAsDataURL(file);
-    }
-  };
-  
+
