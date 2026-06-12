@@ -697,31 +697,32 @@ function AdminMenuManager({ menu, setMenu }: any) {
         </Card>
       )}
       <div className="space-y-2">
-        {menu.map((m: any) => (
-          <div key={m.id} className="bg-[#2A1810] p-3 rounded-2xl flex justify-between items-center border border-[#3D2B24]">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-black border border-[#3D2B24] flex items-center justify-center">{m.image ? <img src={m.image} className="w-full h-full object-cover" alt="" /> : m.emoji}</div>
-              <span className="text-xs font-bold text-[#F5E6D3]">{m.name}</span>
-            </div>
-            <button
-  onClick={() => {
-
-    const updatedMenu =
-      menu.filter((x: any) => x.id !== m.id);
-
-    setMenu(updatedMenu);
-
-    callScript(
-      `action=saveMenu&items=${encodeURIComponent(
-        JSON.stringify(updatedMenu)
-      )}`
-    );
-
-  }}
-          </div>
-        ))}
+  {menu.map((m: any) => (
+    <div 
+      key={m.id} 
+      className="bg-[#2A1810] p-3 rounded-2xl flex justify-between items-center border border-[#3D2B24]"
+    >
+      <div className="w-10 h-10 rounded-lg bg-black border border-[#3D2B24] flex items-center justify-center">
+        <span className="text-xs font-bold text-[#F5E6D3]">{m.name}</span>
       </div>
+
+      <button
+        onClick={() => {
+          const updatedMenu = menu.filter((x: any) => x.id !== m.id);
+          setMenu(updatedMenu);
+
+          callScript(
+            `action=saveMenu&items=${encodeURIComponent(
+              JSON.stringify(updatedMenu)
+            )}`
+          );
+        }}
+      >
+        حذف
+      </button>
     </div>
+  ))}
+</div>
   );
 }
 
