@@ -155,7 +155,7 @@ export default function CafeDidarApp() {
             <button onClick={() => setCurrentView('CART')}
               className="relative flex items-center gap-1.5 bg-[#2A1810] px-3 py-2 rounded-xl border border-[#D4A853]/30 active:scale-95 transition-transform">
               <ShoppingCart size={16} className="text-[#D4A853]" />
-              <span className="text-[11px] text-[#F5E6D3] font-bold">سبد</span>
+              <span className="text-[11px] text-[#F5E6D3] font-bold"></span>سبد خرید</span>
               {cartItemCount > 0 && (
                 <span className="absolute -top-2 -right-2 bg-[#D4A853] text-[#1C0F0A] text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-black">
                   {cartItemCount}
@@ -396,7 +396,7 @@ function FeedbackView({ onFeedbackSubmit }: any) {
       <h2 className="text-2xl font-black text-[#D4A853]">نظرسنجی</h2>
       <div className="space-y-1.5">
         <label className="text-[11px] font-bold text-[#A89B95]">نام شما (الزامی)</label>
-        <Input value={name} onChange={e => setName(e.target.value)} placeholder="مثلاً: علی رضایی" className="bg-[#2A1810] border-[#3D2B24] h-11 text-sm" />
+        <Input value={name} onChange={e => setName(e.target.value)} placeholder="مثلاً: علی" className="bg-[#2A1810] border-[#3D2B24] h-11 text-sm" />
       </div>
       <div className="space-y-1.5">
         <label className="text-[11px] font-bold text-[#A89B95]">امتیاز شما</label>
