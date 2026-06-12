@@ -155,7 +155,7 @@ export default function CafeDidarApp() {
             <button onClick={() => setCurrentView('CART')}
               className="relative flex items-center gap-1.5 bg-[#2A1810] px-3 py-2 rounded-xl border border-[#D4A853]/30 active:scale-95 transition-transform">
               <ShoppingCart size={16} className="text-[#D4A853]" />
-              <span className="text-[11px] text-[#F5E6D3] font-bold"></span>سبد</span>
+              <span className="text-[11px] text-[#F5E6D3] font-bold"></span>سبد<
               {cartItemCount > 0 && (
                 <span className="absolute -top-2 -right-2 bg-[#D4A853] text-[#1C0F0A] text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-black">
                   {cartItemCount}
