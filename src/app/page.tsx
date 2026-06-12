@@ -718,7 +718,18 @@ function AdminMenuManager({ menu, setMenu }: any) {
           );
         }}
       >
-// تابع گالری
+function AdminGalleryManager({ gallery, setGallery }: any) {
+  const handleUpload = (e: any) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setGallery([{ id: Math.random(), url: reader.result as string }, ...gallery]);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <label className="w-full bg-[#D4A853] text-[#1C0F0A] font-black h-12 rounded-xl flex items-center justify-center cursor-pointer">
@@ -730,7 +741,10 @@ function AdminMenuManager({ menu, setMenu }: any) {
         {gallery.map((img: any) => (
           <div key={img.id} className="relative aspect-square rounded-lg overflow-hidden group">
             <img src={img.url} className="w-full h-full object-cover" alt="" />
-            <button onClick={() => setGallery(gallery.filter((x: any) => x.id !== img.id))} className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100">
+            <button 
+              onClick={() => setGallery(gallery.filter((x: any) => x.id !== img.id))} 
+              className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 text-white"
+            >
               حذف
             </button>
           </div>
@@ -738,15 +752,5 @@ function AdminMenuManager({ menu, setMenu }: any) {
       </div>
     </div>
   );
-}
-
-
-        // function AdminGalleryManager({ gallery, setGallery }: any) {
-   // const handleUpload = (e: any) => {
-    // const file = e.target.files[0];
-   // if (file) {
-   //   const reader = new FileReader();
-   //   reader.onloadend = () => setGallery([{ id: Math.random(), url: reader.result as string }, ...gallery]);
-     // reader.readAsDataURL(file);
-   // }
-//  }; //
+        }
+        
