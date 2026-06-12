@@ -56,27 +56,39 @@ export default function CafeDidarApp() {
   const [gallery, setGallery] = useState<any[]>([]);
 
   useEffect(() => {
-    const storedMenu = localStorage.getItem('cafe_menu');
-    setMenu(storedMenu ? JSON.parse(storedMenu) : DEFAULT_MENU);
+  const loadData = async () => {
+    try {
+      const [menuRes, feedbackRes] = await Promise.all([
+        fetch(`${GAS_URL}?action=getMenu`),
+        fetch(`${GAS_URL}?action=getFeedback`)
+      ]);
 
-    const storedFeedback = localStorage.getItem('cafe_feedback');
-    setFeedback(storedFeedback ? JSON.parse(storedFeedback) : []);
+      const menuData = await menuRes.json();
+      const feedbackData = await feedbackRes.json();
 
-    const storedGallery = localStorage.getItem('cafe_gallery');
-    setGallery(storedGallery ? JSON.parse(storedGallery) : []);
+      setMenu(menuData.length ? menuData : DEFAULT_MENU);
+      setFeedback(feedbackData || []);
+
+      const storedGallery = localStorage.getItem('cafe_gallery');
+      setGallery(storedGallery ? JSON.parse(storedGallery) : []);
+
+    } catch (err) {
+      console.error(err);
+
+      setMenu(DEFAULT_MENU);
+
+      const storedGallery = localStorage.getItem('cafe_gallery');
+      setGallery(storedGallery ? JSON.parse(storedGallery) : []);
+    }
 
     const params = new URLSearchParams(window.location.search);
     const table = params.get('table');
+
     if (table) setTableNumber(table);
-  }, []);
+  };
 
-  useEffect(() => {
-    if (menu.length > 0) localStorage.setItem('cafe_menu', JSON.stringify(menu));
-  }, [menu]);
-
-  useEffect(() => {
-    localStorage.setItem('cafe_feedback', JSON.stringify(feedback));
-  }, [feedback]);
+  loadData();
+}, []);
 
   useEffect(() => {
     localStorage.setItem('cafe_gallery', JSON.stringify(gallery));
@@ -203,7 +215,23 @@ export default function CafeDidarApp() {
               isSuccess={isSuccess} 
             />
           )}
-          {currentView === 'FEEDBACK' && <FeedbackView onFeedbackSubmit={(f: any) => setFeedback(prev => [f, ...prev])} />}
+        {currentView === 'FEEDBACK' && (
+  <FeedbackView
+    onFeedbackSubmit={(f: any) => {
+
+      setFeedback(prev => [f, ...prev]);
+
+      callScript(
+        `action=saveFeedback&id=${f.id}` +
+        `&name=${encodeURIComponent(f.name)}` +
+        `&rating=${f.rating}` +
+        `&comment=${encodeURIComponent(f.comment)}` +
+        `&timestamp=${encodeURIComponent(f.timestamp)}`
+      );
+
+    }}
+  />
+)}
           {currentView === 'GALLERY' && <GalleryView gallery={gallery} />}
           {currentView === 'ADMIN_LOGIN' && <AdminLogin onLoginSuccess={() => setCurrentView('ADMIN_DASHBOARD')} />}
           {currentView === 'ADMIN_DASHBOARD' && (
@@ -600,13 +628,34 @@ function AdminMenuManager({ menu, setMenu }: any) {
   const [isAdding, setIsAdding] = useState(false);
   const [form, setForm] = useState<Partial<MenuItem>>({ name: '', price: 0, category: 'HOT', emoji: '☕', description: '', image: '' });
   const handleSave = () => {
-    if (!form.name) return;
-    const newItem = { ...form, id: Math.random().toString(36).substr(2, 9) } as MenuItem;
-    setMenu([newItem, ...menu]);
-    setIsAdding(false);
-    setForm({ name: '', price: 0, category: 'HOT', emoji: '☕', description: '', image: '' });
-  };
-  const handleImage = (e: any) => {
+  if (!form.name) return;
+
+  const newItem = {
+    ...form,
+    id: Math.random().toString(36).substr(2, 9)
+  } as MenuItem;
+
+  const updatedMenu = [newItem, ...menu];
+
+  setMenu(updatedMenu);
+
+  callScript(
+    `action=saveMenu&items=${encodeURIComponent(
+      JSON.stringify(updatedMenu)
+    )}`
+  );
+
+  setIsAdding(false);
+
+  setForm({
+    name: '',
+    price: 0,
+    category: 'HOT',
+    emoji: '☕',
+    description: '',
+    image: ''
+  });
+};
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
@@ -654,7 +703,21 @@ function AdminMenuManager({ menu, setMenu }: any) {
               <div className="w-10 h-10 rounded-lg bg-black border border-[#3D2B24] flex items-center justify-center">{m.image ? <img src={m.image} className="w-full h-full object-cover" alt="" /> : m.emoji}</div>
               <span className="text-xs font-bold text-[#F5E6D3]">{m.name}</span>
             </div>
-            <button onClick={() => setMenu(menu.filter((x: any) => x.id !== m.id))} className="text-red-500/30"><Trash2 size={16} /></button>
+            <button
+  onClick={() => {
+
+    const updatedMenu =
+      menu.filter((x: any) => x.id !== m.id);
+
+    setMenu(updatedMenu);
+
+    callScript(
+      `action=saveMenu&items=${encodeURIComponent(
+        JSON.stringify(updatedMenu)
+      )}`
+    );
+
+  }}
           </div>
         ))}
       </div>
