@@ -719,15 +719,6 @@ function AdminMenuManager({ menu, setMenu }: any) {
         }}
       >
 // تابع گالری
-function AdminGalleryManager({ gallery, setGallery }: any) {
-  const handleUpload = (e: any) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setGallery([{ id: Math.random(), url: reader.result as string }, ...gallery]);
-      reader.readAsDataURL(file);
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -749,5 +740,13 @@ function AdminGalleryManager({ gallery, setGallery }: any) {
     </div>
   );
 }
-
+function AdminGalleryManager({ gallery, setGallery }: any) {
+  const handleUpload = (e: any) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setGallery([{ id: Math.random(), url: reader.result as string }, ...gallery]);
+      reader.readAsDataURL(file);
+    }
+  };
   
