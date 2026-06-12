@@ -1,4 +1,3 @@
-cat > /mnt/user-data/outputs/page.tsx << 'ENDOFFILE'
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
@@ -802,5 +801,4 @@ function AdminQRCodeManager() {
     </div>
   );
 }
-ENDOFFILE
-echo "Done"
+
