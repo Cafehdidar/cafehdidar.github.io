@@ -718,22 +718,18 @@ function AdminMenuManager({ menu, setMenu }: any) {
           );
         }}
       >
-        حذف
-      </button>
+     </div>
     </div>
-  ))}
-</div>
   );
-}
+} 
 
+// تابع گالری
 function AdminGalleryManager({ gallery, setGallery }: any) {
   const handleUpload = (e: any) => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setGallery([{ id: Math.random(), url: reader.result as string }, ...gallery]);
-      };
+      reader.onloadend = () => setGallery([{ id: Math.random(), url: reader.result as string }, ...gallery]);
       reader.readAsDataURL(file);
     }
   };
@@ -742,22 +738,14 @@ function AdminGalleryManager({ gallery, setGallery }: any) {
     <div className="space-y-4">
       <label className="w-full bg-[#D4A853] text-[#1C0F0A] font-black h-12 rounded-xl flex items-center justify-center cursor-pointer">
         افزودن تصویر
-        <input 
-          type="file" 
-          className="hidden" 
-          accept="image/*" 
-          onChange={handleUpload} 
-        />
+        <input type="file" className="hidden" accept="image/*" onChange={handleUpload} />
       </label>
 
       <div className="grid grid-cols-3 gap-2">
         {gallery.map((img: any) => (
           <div key={img.id} className="relative aspect-square rounded-lg overflow-hidden group">
             <img src={img.url} className="w-full h-full object-cover" alt="" />
-            <button
-              onClick={() => setGallery(gallery.filter((x: any) => x.id !== img.id))}
-              className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
-            >
+            <button onClick={() => setGallery(gallery.filter((x: any) => x.id !== img.id))} className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100">
               حذف
             </button>
           </div>
@@ -765,5 +753,6 @@ function AdminGalleryManager({ gallery, setGallery }: any) {
       </div>
     </div>
   );
-      }
+}
+
   
