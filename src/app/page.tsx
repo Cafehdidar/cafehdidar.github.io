@@ -747,7 +747,4 @@ function AdminMenuManager({ menu, setMenu }: any) {
       </div>
     </div>
   );
-            }
-          
-  
-      
+          }
