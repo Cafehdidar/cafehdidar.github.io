@@ -12,20 +12,8 @@ export const DEFAULT_MENU: MenuItem[] = [
   { id: 'h8', name: 'شیر عسل دارچین', description: 'گرم و آرامش‌بخش', price: 100000, category: 'HOT', emoji: '🍵' },
   
   // COLD BAR
-  { id: 'c1', name: 'موهیتو نعناع', description: 'تازه و خنک', price: 180000, category: 'COLD', emoji: '🍹' },
-  { id: 'c3', name: 'فراپوچینو', description: 'خامه و قهوه سرد', price: 190000, category: 'COLD', emoji: '🧋' },
-  { id: 'c4', name: 'آیس لته', description: 'لاته روی یخ', price: 160000, category: 'COLD', emoji: '☕' },
-  { id: 'c5', name: 'اسموتی توت‌فرنگی', description: 'میوه تازه', price: 170000, category: 'COLD', emoji: '🍓' },
-  { id: 'c6', name: 'شیک شکلاتی', description: 'غنی و خامه‌ای', price: 200000, category: 'COLD', emoji: '🍫' },
-  { id: 'c7', name: 'آیس آمریکانو', description: 'سبک روی یخ', price: 140000, category: 'COLD', emoji: '☕' },
   
   // DESSERT
-  { id: 'd1', name: 'براونی شکلاتی', description: 'گرم با بستنی وانیل', price: 180000, category: 'DESSERT', emoji: '🍫' },
-  { id: 'd2', name: 'چیزکیک توت‌فرنگی', description: 'خامه‌ای و ترش', price: 200000, category: 'DESSERT', emoji: '🍰' },
-  { id: 'd3', name: 'تیرامیسو', description: 'دسر ایتالیایی', price: 220000, category: 'DESSERT', emoji: '🍮' },
-  { id: 'd4', name: 'پاناکوتا وانیل', description: 'نرم و لطیف', price: 190000, category: 'DESSERT', emoji: '🍮' },
-  { id: 'd5', name: 'مافین بلوبری', description: 'تازه از فر', price: 130000, category: 'DESSERT', emoji: '🧁' },
-  { id: 'd6', name: 'وافل عسل', description: 'ترد با عسل طبیعی', price: 170000, category: 'DESSERT', emoji: ' waffle' },
 ];
 
 export const STORAGE_KEYS = {
