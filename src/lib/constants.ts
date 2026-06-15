@@ -1,6 +1,6 @@
 import { MenuItem } from './types';
 
-//export const DEFAULT_MENU: MenuItem[] = [];
+export const DEFAULT_MENU: MenuItem[] = [];
 
 export const STORAGE_KEYS = {
   MENU: 'cafe_menu',
