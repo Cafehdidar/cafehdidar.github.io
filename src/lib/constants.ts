@@ -36,5 +36,5 @@ export const STORAGE_KEYS = {
   GALLERY: 'cafe_gallery',
 };
 
-export const ADMIN_PASSWORD = 'didar1234';
+export const ADMIN_PASSWORD = 'didar1234a';
 export const BASE_URL = 'https://rezaxm80-max.github.io/cafe-didar';
