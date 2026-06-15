@@ -13,7 +13,6 @@ export const DEFAULT_MENU: MenuItem[] = [
   
   // COLD BAR
   { id: 'c1', name: 'موهیتو نعناع', description: 'تازه و خنک', price: 180000, category: 'COLD', emoji: '🍹' },
-  { id: 'c2', name: 'لیموناد زنجبیل', description: 'تند و ترش', price: 150000, category: 'COLD', emoji: '🍋' },
   { id: 'c3', name: 'فراپوچینو', description: 'خامه و قهوه سرد', price: 190000, category: 'COLD', emoji: '🧋' },
   { id: 'c4', name: 'آیس لته', description: 'لاته روی یخ', price: 160000, category: 'COLD', emoji: '☕' },
   { id: 'c5', name: 'اسموتی توت‌فرنگی', description: 'میوه تازه', price: 170000, category: 'COLD', emoji: '🍓' },
